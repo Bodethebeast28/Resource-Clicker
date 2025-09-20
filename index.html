@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Resource Clicker — New Balance (Diamond PP, x3 Prestige Costs)</title>
+<title>Resource Clicker — Non-Decreasing Total Score</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
 :root{--bg:#f8fafc;--card:#fff;--muted:#6b7280;--accent:#0b84ff}
@@ -12,7 +12,7 @@ header{display:flex;align-items:center;padding:12px 16px;background:#0f172a;colo
 header h1{margin:0 12px 0 0;font-size:18px}
 main{display:flex;gap:12px;padding:18px;flex-wrap:wrap}
 .clicker{width:540px;max-width:100%}
-.panel-area{flex:1;min-width:360px;max-width:900px}
+.panel-area{flex:1;min-width:360px;max-width:980px}
 .card{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(2,6,23,0.06);margin-bottom:12px}
 .resources{display:flex;gap:8px;flex-wrap:wrap}
 .resource{flex:1;min-width:150px;padding:12px;border-radius:8px;background:#fff;border:1px solid #eee;text-align:center;position:relative;overflow:hidden}
@@ -41,13 +41,17 @@ progress{height:10px}
 .notice{padding:8px 10px;border-radius:8px;background:#e0f2fe;color:#0c4a6e;border:1px solid #bae6fd;margin-bottom:8px}
 hr.sep{border:none;border-top:1px solid #e5e7eb;margin:10px 0}
 .tag{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;margin-left:6px}
+table.lb{width:100%;border-collapse:collapse;margin-top:8px}
+table.lb th, table.lb td{border-bottom:1px solid #e5e7eb;padding:8px;text-align:left;font-size:14px}
+table.lb th{font-weight:700}
+.right{text-align:right}
 </style>
 </head>
 <body>
 <header>
-  <h1>Resource Clicker — New Balance</h1>
+  <h1>Resource Clicker — Non-Decreasing Total Score</h1>
   <div style="flex:1"></div>
-  <div class="muted">Prestige via Diamonds • x3 prestige costs • pricier shop • tougher unlocks</div>
+  <div class="muted">Total score never goes down: spending banks score into Lifetime.</div>
 </header>
 
 <main>
@@ -120,8 +124,9 @@ hr.sep{border:none;border-top:1px solid #e5e7eb;margin:10px 0}
 
       <div style="margin-top:12px">
         <h4>Total Score</h4>
-        <div id="totalScore" class="stat">0</div>
-        <div class="small-muted">Weighted: wood=1, stone=5, iron=12, gold=20, diamond=30, dirt=3</div>
+        <div class="small-muted">Total = Lifetime + Current Weighted. When you spend, the cost's weighted value is added to Lifetime, so Total never decreases.</div>
+        <div class="stat" id="totalScore">0</div>
+        <div class="small-muted">Current weighted: <span id="currentWeighted">0</span> | Lifetime: <span id="lifetimeScore">0</span></div>
       </div>
     </div>
   </div>
@@ -133,6 +138,7 @@ hr.sep{border:none;border-top:1px solid #e5e7eb;margin:10px 0}
         <button id="tabUnlocks" class="tab-btn">Unlocks</button>
         <button id="tabGarden" class="tab-btn">Gardens</button>
         <button id="tabPrestige" class="tab-btn">Prestige</button>
+        <button id="tabLeaderboard" class="tab-btn">Leaderboard</button>
         <button id="tabAchievements" class="tab-btn">Achievements</button>
         <button id="tabQuests" class="tab-btn">Quests</button>
       </div>
@@ -159,6 +165,21 @@ hr.sep{border:none;border-top:1px solid #e5e7eb;margin:10px 0}
         <h4>Prestige Shop</h4>
         <div class="small-muted">Stacking x2 multipliers. Global stacks with per-resource. Costs scale x3 each level.</div>
         <div id="prestigeShop" style="margin-top:8px"></div>
+      </div>
+
+      <div id="panelLeaderboard" style="display:none">
+        <h3>Leaderboard (Local)</h3>
+        <div class="small-muted">Submits to your browser's local leaderboard. Use the same name each time to keep your entries grouped.</div>
+        <div class="row" style="margin:8px 0">
+          <input id="playerName" type="text" placeholder="Your name" style="max-width:260px" />
+          <button id="submitNow" class="small green">Submit Lifetime Score</button>
+          <button id="refreshLB" class="small">Refresh</button>
+          <button id="resetLB" class="small" title="Clears local leaderboard">Reset Leaderboard</button>
+        </div>
+        <table class="lb">
+          <thead><tr><th>#</th><th>Name</th><th class="right">Score</th><th>Date</th></tr></thead>
+          <tbody id="leaderboardRows"></tbody>
+        </table>
       </div>
 
       <div id="panelAchievements" style="display:none">
@@ -189,6 +210,7 @@ let state={
   unlocked:{wood:true,stone:false,iron:false,gold:false,diamond:false,dirt:false},
   gardens:0,
   prestigePoints:0,
+  lifetimeScore:0,
   prestigeUpgrades:{
     global:{ level:0 },
     wood:{ level:0 },
@@ -260,6 +282,7 @@ function loadLocal(){
       }, state.prestigeUpgrades||{});
       for(const r of RES_LIST){ if(!state.prestigeUpgrades[r]) state.prestigeUpgrades[r]={level:0}; }
       if(!state.prestigeUpgrades.global) state.prestigeUpgrades.global={level:0};
+      if(typeof state.lifetimeScore!=='number') state.lifetimeScore=0;
     }
   }catch(e){}
 }
@@ -288,6 +311,7 @@ document.getElementById('importTextBtn').addEventListener('click', ()=>{
   }, obj.prestigeUpgrades||{});
   for(const r of RES_LIST){ if(!obj.prestigeUpgrades[r]) obj.prestigeUpgrades[r]={level:0}; }
   if(!obj.prestigeUpgrades.global) obj.prestigeUpgrades.global={level:0};
+  if(typeof obj.lifetimeScore!=='number') obj.lifetimeScore=0;
   state = Object.assign(state, obj);
   renderAll(); updateAll();
   alert('Imported from text');
@@ -304,7 +328,8 @@ document.getElementById('copyTextBtn').addEventListener('click', async()=>{
 document.getElementById('clearTextBtn').addEventListener('click', ()=> box.value='');
 
 // UI update
-function weightedScore(){ return RES_LIST.reduce((t,r)=>t+state.resources[r]*VALUES[r],0); }
+function currentWeighted(){ return RES_LIST.reduce((t,r)=>t+state.resources[r]*VALUES[r],0); }
+function totalScore(){ return state.lifetimeScore + currentWeighted(); }
 function updateResourceUI(){
   RES_LIST.forEach(r=>{
     document.getElementById(r+'Count').textContent = fmt(state.resources[r]);
@@ -312,11 +337,13 @@ function updateResourceUI(){
     document.getElementById('btn'+cap(r)).disabled = !state.unlocked[r];
   });
   document.getElementById('ppCount').textContent = fmt(state.prestigePoints);
-  document.getElementById('totalScore').textContent = fmt(weightedScore());
+  document.getElementById('totalScore').textContent = fmt(totalScore());
+  document.getElementById('currentWeighted').textContent = fmt(currentWeighted());
+  document.getElementById('lifetimeScore').textContent = fmt(state.lifetimeScore);
 }
 
 // Tabs
-const panels={ shop:'panelShop', unlocks:'panelUnlocks', garden:'panelGarden', prestige:'panelPrestige', achievements:'panelAchievements', quests:'panelQuests' };
+const panels={ shop:'panelShop', unlocks:'panelUnlocks', garden:'panelGarden', prestige:'panelPrestige', leaderboard:'panelLeaderboard', achievements:'panelAchievements', quests:'panelQuests' };
 Object.keys(panels).forEach(k=>{
   document.getElementById('tab'+cap(k)).addEventListener('click', ()=>showPanel(k));
 });
@@ -327,17 +354,16 @@ function showPanel(name){
   });
 }
 
-// ---- SHOP (more expensive) ----
+// ---- SHOP (prices from previous "new balance") ----
 const CONFIG={ 
-  clickCostMult:1.9,   // was 1.6
-  autoCostMult:2.2,    // was 1.8
+  clickCostMult:1.9,
+  autoCostMult:2.2,
   autoPerPurchase:2, 
   gardenDiscountPer:0.1, 
   gardenMaxDiscount:0.3 
 };
 let shopItems=[];
 RES_LIST.forEach(r=>{
-  // Raised base costs significantly (was 10/25)
   shopItems.push({id:r+'_click', res:r, type:'click', title:cap(r)+' +1 per click', desc:'Increase '+r+' per click by 1.', level:0, baseCost:{[r]:25}});
   shopItems.push({id:r+'_auto',  res:r, type:'auto',  title:cap(r)+' +2/sec',       desc:'Increase automatic '+r+' by 2/sec.', level:0, baseCost:{[r]:60}});
 });
@@ -353,11 +379,19 @@ function scaledCost(item){
   return out;
 }
 function canAfford(c){ for(const k in c){ if(state.resources[k]<c[k]) return false; } return true; }
-function payCost(c){ for(const k in c){ state.resources[k]-=c[k]; } }
+
+// NEW: weighted value helper and payCost that banks score
+function weightedOf(cost){ let t=0; for(const k in cost){ t += (VALUES[k]||0)*cost[k]; } return t; }
+function payCost(c){ 
+  // Bank the weighted value so Total never goes down
+  state.lifetimeScore += weightedOf(c);
+  for(const k in c){ state.resources[k]-=c[k]; } 
+}
+
 function renderShop(){
   const box=document.getElementById('shopList'); box.innerHTML='';
   shopItems.forEach(item=>{
-    if(!state.unlocked[item.res]) return; // show only for unlocked resource
+    if(!state.unlocked[item.res]) return;
     const costNow = scaledCost(item);
     const btn=document.createElement('button');
     btn.className='upg';
@@ -367,7 +401,7 @@ function renderShop(){
       <div class="muted">${item.desc}</div>
       <div class="cost">Cost: ${Object.entries(costNow).map(([k,v])=>fmt(v)+' '+cap(k)).join(', ')}</div>`;
     btn.addEventListener('click', ()=>{
-      const currentCost = scaledCost(item); // recalc right before paying
+      const currentCost = scaledCost(item);
       if(!canAfford(currentCost)) return;
       payCost(currentCost);
       item.level++;
@@ -379,13 +413,13 @@ function renderShop(){
   });
 }
 
-// ---- Unlocks (tougher) ----
+// ---- Unlocks ----
 const unlocks=[
-  { id:'unlock_stone',   title:'Unlock Stone',   desc:'Enables Stone button.',   cost:{wood:1000},     target:'stone' },
-  { id:'unlock_iron',    title:'Unlock Iron',    desc:'Enables Iron button.',    cost:{stone:2000},    target:'iron' },
-  { id:'unlock_gold',    title:'Unlock Gold',    desc:'Enables Gold button.',    cost:{iron:7000},     target:'gold' },
-  { id:'unlock_diamond', title:'Unlock Diamond', desc:'Enables Diamond button.', cost:{gold:15000},    target:'diamond' },
-  { id:'unlock_dirt',    title:'Unlock Dirt',    desc:'Enables Dirt button.',    cost:{wood:80,stone:40}, target:'dirt' }  // unchanged (tell me if you want this raised)
+  { id:'unlock_stone',   title:'Unlock Stone',   desc:'Enables Stone button.',   cost:{wood:1000},  target:'stone' },
+  { id:'unlock_iron',    title:'Unlock Iron',    desc:'Enables Iron button.',    cost:{stone:2000}, target:'iron' },
+  { id:'unlock_gold',    title:'Unlock Gold',    desc:'Enables Gold button.',    cost:{iron:7000},  target:'gold' },
+  { id:'unlock_diamond', title:'Unlock Diamond', desc:'Enables Diamond button.', cost:{gold:15000}, target:'diamond' },
+  { id:'unlock_dirt',    title:'Unlock Dirt',    desc:'Enables Dirt button.',    cost:{wood:500,stone:250}, target:'dirt' }
 ];
 function renderUnlocks(){
   const box=document.getElementById('unlockList'); box.innerHTML='';
@@ -411,7 +445,7 @@ function renderUnlocks(){
   });
 }
 
-// ---- Gardens (unchanged costs) ----
+// ---- Gardens ----
 function renderGardens(){
   const box=document.getElementById('gardenList'); box.innerHTML='';
   const btn=document.createElement('button');
@@ -436,13 +470,15 @@ function renderPrestige(){
   const box=document.getElementById('prestigeList'); box.innerHTML='';
   const pot = Math.floor(state.resources.diamond/1000); // DIAMONDS -> PP
   const globalLvl = state.prestigeUpgrades.global.level||0;
-  box.innerHTML = `<div class="muted">Prestige resets progress for Prestige Points.</div>
+  box.innerHTML = `<div class="muted">Prestige resets current resources/unlocks (not lifetime score) for Prestige Points.</div>
   <div style="margin-top:6px">Prestige now would grant <strong>${fmt(pot)}</strong> PP (based on Diamonds).</div>
   <div style="margin-top:6px">Global Level: <strong>${globalLvl}</strong> <span class="tag">x${fmt(Math.pow(2,globalLvl))}</span></div>`;
 }
 document.getElementById('prestigeBtn').addEventListener('click', ()=>{
-  const pp = Math.floor(state.resources.diamond/1000); // DIAMONDS -> PP
-  if(!confirm(`Prestige for ${pp} PP (consuming progress)?`)) return;
+  const pp = Math.floor(state.resources.diamond/1000);
+  if(!confirm(`Prestige for ${pp} PP (resources reset, lifetime score retained)?`)) return;
+  // Bank remaining current score before reset
+  state.lifetimeScore += currentWeighted();
   state.prestigePoints += pp;
   RES_LIST.forEach(r=>{ state.resources[r]=0; state.click[r]=1; state.auto[r]=0; state.unlocked[r]=(r==='wood'); });
   state.gardens=0; shopItems.forEach(i=>i.level=0);
@@ -500,6 +536,46 @@ function renderPrestigeShop(){
   box.appendChild(grid);
 }
 
+// ---- Leaderboard (Local) ----
+function getLeaderboard(){
+  const raw = localStorage.getItem('rc_leaderboard');
+  let list = [];
+  try{ list = JSON.parse(raw||'[]'); }catch(e){ list=[]; }
+  if(!Array.isArray(list)) list=[];
+  return list;
+}
+function setLeaderboard(list){
+  localStorage.setItem('rc_leaderboard', JSON.stringify(list));
+}
+function submitLeaderboard(name, score){
+  const list = getLeaderboard();
+  list.push({ name: name||'Anonymous', score: Number(score)||0, ts: Date.now() });
+  list.sort((a,b)=> b.score - a.score || a.ts - b.ts);
+  setLeaderboard(list.slice(0,100));
+}
+function renderLeaderboard(){
+  const tbody = document.getElementById('leaderboardRows');
+  const list = getLeaderboard();
+  tbody.innerHTML = '';
+  list.forEach((e, i)=>{
+    const tr = document.createElement('tr');
+    const date = new Date(e.ts);
+    tr.innerHTML = `<td>${i+1}</td><td>${e.name}</td><td class="right">${fmt(e.score)}</td><td>${date.toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById('submitNow').addEventListener('click', ()=>{
+  const name = (document.getElementById('playerName').value||'').trim() || 'Anonymous';
+  submitLeaderboard(name, totalScore());
+  renderLeaderboard();
+  alert('Submitted lifetime score to local leaderboard!');
+});
+document.getElementById('refreshLB').addEventListener('click', renderLeaderboard);
+document.getElementById('resetLB').addEventListener('click', ()=>{
+  if(!confirm('Reset local leaderboard?')) return;
+  setLeaderboard([]); renderLeaderboard();
+});
+
 // ---- Achievements / Quests (minimal) ----
 const achievements=[
   {id:'first_wood', name:'First Wood Chop', desc:'Collect your first wood.', unlocked:false, check:()=>state.resources.wood>=1}
@@ -554,7 +630,7 @@ function renderQuests(){
 }
 
 // Render + Update
-function renderAll(){ renderShop(); renderUnlocks(); renderGardens(); renderPrestige(); renderPrestigeShop(); renderAchievements(); renderQuests(); }
+function renderAll(){ renderShop(); renderUnlocks(); renderGardens(); renderPrestige(); renderPrestigeShop(); renderLeaderboard(); renderAchievements(); renderQuests(); }
 function updateAll(){ updateResourceUI(); renderUnlocks(); renderShop(); renderGardens(); renderPrestige(); renderPrestigeShop(); renderAchievements(); renderQuests(); saveLocal(); }
 
 // Init
