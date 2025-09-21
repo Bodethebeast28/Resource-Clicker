@@ -3991,6 +3991,36 @@ body.theme-w3 header .muted { display:none !important; }
 })();
 </script>
 
+
+<script type="module">
+// Ensure W3 UI becomes visible whenever re-entering World 3.
+(function(){
+  const $ = (id)=>document.getElementById(id);
+  function unhideW3(){
+    const el = $('w3Full');
+    if(el){
+      el.style.display = '';          // clear any inline "display:none"
+      el.classList.remove('hidden');  // in case a class was added
+    }
+  }
+  // When clicking "Enter World 3", force unhide shortly after UI builds
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && (t.id==='enterW3' || /enter world 3/i.test(t.textContent||''))){
+      setTimeout(unhideW3, 60);
+      setTimeout(unhideW3, 250);
+    }
+  });
+  // Safety: brief timer to correct hidden state if already in W3
+  let attempts = 0;
+  const safety = setInterval(()=>{
+    attempts++;
+    if(document.body.classList.contains('theme-w3')) unhideW3();
+    if(attempts > 25) clearInterval(safety);
+  }, 200);
+})();
+</script>
+
 </body>
 </html>
 
