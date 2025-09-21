@@ -3479,5 +3479,246 @@ body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
 })();
 </script>
 
+
+<style>
+/* Force-hide all other content while in W3 */
+body.theme-w3 #resourceGrid,
+body.theme-w3 #fishingEmbed,
+body.theme-w3 #panelShop,
+body.theme-w3 #panelUnlocks,
+body.theme-w3 #panelUnique,
+body.theme-w3 #panelGarden,
+body.theme-w3 #panelPrestige,
+body.theme-w3 #panelWorlds,
+body.theme-w3 #panelLeaderboard,
+body.theme-w3 #panelAchievements,
+body.theme-w3 #panelQuests,
+body.theme-w3 #tabShop,
+body.theme-w3 #tabUnlocks,
+body.theme-w3 #tabUnique,
+body.theme-w3 #tabGarden,
+body.theme-w3 #tabPrestige,
+body.theme-w3 #tabWorlds,
+body.theme-w3 #tabLeaderboard,
+body.theme-w3 #tabAchievements,
+body.theme-w3 #tabQuests { display: none !important; }
+
+/* W3 container styling, scoped */
+#w3Full { display:none; }
+body.theme-w3 #w3Full { display:block; }
+#w3Full .w3-grid { display:grid; grid-template-columns: 1.1fr 0.9fr; gap:12px; }
+#w3Full .card { background:#fff; padding:12px; border-radius:10px; box-shadow:0 6px 18px rgba(2,6,23,0.06); }
+#w3Full h3 { margin:0 0 8px 0; }
+#w3Full .muted { color:#64748b; font-size:13px; }
+#w3Full .stat { font-weight:700; }
+#w3Full .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+#w3Full .grid2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+#w3Full .grid3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+#w3Full .upg { display:block; width:100%; text-align:left; padding:10px; border-radius:8px; border:1px solid #e5e7eb; background:#f8fafc; cursor:pointer; }
+#w3Full .upg:disabled { background:#f1f5f9; color:#94a3b8; cursor:not-allowed; }
+#w3Full progress { width:100%; height:10px; }
+</style>
+
+<script type="module">
+(function(){
+  const $ = (id)=>document.getElementById(id);
+
+  // Insert W3 container near top of left panel (below subtitle)
+  function ensureW3(){
+    if($('w3Full')) return $('w3Full');
+    const host = $('panelLeft') || document.body;
+    const wrap = document.createElement('div');
+    wrap.id = 'w3Full';
+    wrap.className = 'card';
+    wrap.innerHTML = `
+      <h3>World 3 — Combat</h3>
+      <div class="muted">Fight mobs, earn trophies, and prestige. (Standalone UI)</div>
+      <div class="w3-grid" style="margin-top:8px">
+        <div class="card">
+          <div class="row" style="justify-content:space-between">
+            <div>HP: <span id="w3_hp" class="stat">0</span>/<span id="w3_hpmax" class="stat">0</span></div>
+            <div>Stamina: <span id="w3_stam" class="stat">0</span>/<span id="w3_stammax" class="stat">0</span></div>
+          </div>
+          <div class="row" style="margin:6px 0">
+            <progress id="w3_hpbar" value="0" max="100"></progress>
+          </div>
+          <div id="w3_mobBox" class="card" style="margin-top:8px">
+            <div class="row" style="justify-content:space-between">
+              <div><strong id="w3_mobName">Mob</strong></div>
+              <div>HP: <span id="w3_mobHp">0</span>/<span id="w3_mobHpMax">0</span></div>
+            </div>
+            <progress id="w3_mobBar" value="0" max="100"></progress>
+            <div class="muted" id="w3_floorInfo" style="margin-top:6px">Floor 1</div>
+            <div class="row" style="margin-top:8px">
+              <button id="w3_attack" class="upg" style="text-align:center"><div><strong>Attack</strong></div><div class="muted">Costs 1 stamina</div></button>
+              <button id="w3_flee" class="upg" style="text-align:center"><div><strong>Flee</strong></div><div class="muted">Swap to next mob</div></button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div><strong>Trophies:</strong> <span id="w3_trophies" class="stat">0</span></div>
+          <div class="muted" style="margin:4px 0 8px 0;">Use trophies to upgrade your run.</div>
+          <div class="grid2">
+            <button id="w3_upg_power" class="upg">
+              <div><strong>+2 Power</strong></div>
+              <div class="muted">Increase damage per attack</div>
+              <div class="muted" id="w3_cost_power">Cost: 5</div>
+            </button>
+            <button id="w3_upg_stamina" class="upg">
+              <div><strong>+2 Max Stamina</strong></div>
+              <div class="muted">Longer attack chains</div>
+              <div class="muted" id="w3_cost_stamina">Cost: 6</div>
+            </button>
+            <button id="w3_upg_regen" class="upg">
+              <div><strong>Faster Regen</strong></div>
+              <div class="muted">-0.2s per level (min 0.4s)</div>
+              <div class="muted" id="w3_cost_regen">Cost: 8</div>
+            </button>
+            <button id="w3_upg_hp" class="upg">
+              <div><strong>+10 Max HP</strong></div>
+              <div class="muted">Survive longer</div>
+              <div class="muted" id="w3_cost_hp">Cost: 7</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    const marker = $('leftSub');
+    if(marker && marker.parentNode) marker.parentNode.insertBefore(wrap, marker.nextSibling);
+    else host.prepend(wrap);
+    return wrap;
+  }
+
+  // Simple standalone W3 state
+  const W3 = {
+    hp: 60, hpMax: 60,
+    stam: 10, stamMax: 10,
+    regenMs: 1200, lastRegen: Date.now(),
+    power: 5,
+    trophies: 0,
+    floor: 1,
+    mobs: [
+      {name:'Slime', hp:30, max:30, reward:3},
+      {name:'Wolf', hp:50, max:50, reward:5},
+      {name:'Ogre', hp:120, max:120, reward:12},
+      {name:'Golem', hp:200, max:200, reward:18},
+      {name:'Dragon Whelp', hp:350, max:350, reward:30}
+    ],
+    mobIndex: 0
+  };
+
+  function currentMob(){ return W3.mobs[W3.mobIndex]; }
+
+  function render(){
+    const el = ensureW3();
+    if(!el) return;
+    // Player
+    $('w3_hp').textContent = W3.hp;
+    $('w3_hpmax').textContent = W3.hpMax;
+    $('w3_hpbar').max = W3.hpMax;
+    $('w3_hpbar').value = W3.hp;
+
+    $('w3_stam').textContent = W3.stam;
+    $('w3_stammax').textContent = W3.stamMax;
+
+    // Mob
+    const m = currentMob();
+    $('w3_mobName').textContent = m.name;
+    $('w3_mobHp').textContent = m.hp;
+    $('w3_mobHpMax').textContent = m.max;
+    $('w3_mobBar').max = m.max;
+    $('w3_mobBar').value = m.hp;
+
+    $('w3_floorInfo').textContent = 'Floor ' + W3.floor;
+    $('w3_trophies').textContent = W3.trophies;
+
+    // Costs
+    $('w3_cost_power').textContent = 'Cost: ' + (5 + W3.power);
+    $('w3_cost_stamina').textContent = 'Cost: ' + (6 + Math.floor((W3.stamMax-10)/2)*2);
+    $('w3_cost_regen').textContent = 'Cost: ' + Math.max(8 - Math.floor((1600 - W3.regenMs)/200), 4);
+    $('w3_cost_hp').textContent = 'Cost: ' + (7 + Math.floor((W3.hpMax-60)/10)*3);
+  }
+
+  function nextMob(){
+    W3.mobIndex = (W3.mobIndex + 1) % W3.mobs.length;
+    if(W3.mobIndex === 0){ W3.floor += 1; }
+    const m = currentMob();
+    m.hp = m.max;
+    render();
+  }
+
+  function attack(){
+    if(W3.stam <= 0) return;
+    W3.stam -= 1;
+    const m = currentMob();
+    m.hp = Math.max(0, m.hp - W3.power);
+    if(m.hp <= 0){
+      W3.trophies += m.reward;
+      nextMob();
+    } else {
+      render();
+    }
+  }
+
+  function flee(){ nextMob(); }
+
+  function tick(){
+    const now = Date.now();
+    if(now - W3.lastRegen >= W3.regenMs){
+      const ticks = Math.floor((now - W3.lastRegen)/W3.regenMs);
+      W3.stam = Math.min(W3.stamMax, W3.stam + ticks);
+      W3.lastRegen = now;
+      render();
+    }
+  }
+
+  function buy(cost, fn){
+    if(W3.trophies < cost) return;
+    W3.trophies -= cost;
+    fn();
+    render();
+  }
+
+  function bind(){
+    const el = ensureW3();
+    el.querySelector('#w3_attack').onclick = attack;
+    el.querySelector('#w3_flee').onclick = flee;
+    el.querySelector('#w3_upg_power').onclick = ()=> buy(5 + W3.power, ()=> W3.power += 2);
+    el.querySelector('#w3_upg_stamina').onclick = ()=> buy(6 + Math.floor((W3.stamMax-10)/2)*2, ()=> W3.stamMax += 2);
+    el.querySelector('#w3_upg_regen').onclick = ()=> buy(Math.max(8 - Math.floor((1600 - W3.regenMs)/200), 4), ()=> W3.regenMs = Math.max(400, W3.regenMs - 200));
+    el.querySelector('#w3_upg_hp').onclick = ()=> buy(7 + Math.floor((W3.hpMax-60)/10)*3, ()=> W3.hpMax += 10);
+  }
+
+  // Full-screen switcher (force)
+  function enterW3(){
+    document.body.classList.add('theme-w3');
+    // Update headings
+    const wn = $('worldName'); if(wn) wn.textContent = 'World 3';
+    const lt = $('leftTitleText'); if(lt) lt.textContent = 'World 3';
+    const ls = $('leftSub'); if(ls) ls.textContent = 'Combat mode.';
+    ensureW3();
+    render();
+    bind();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  // Click delegation: any button with id enterW3 or text containing "Enter World 3"
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(!t) return;
+    if(t.id==='enterW3' || /enter world 3/i.test(t.textContent||'')){
+      e.preventDefault();
+      enterW3();
+    }
+  });
+
+  // If hash is #w3, enter automatically
+  if(location.hash === '#w3'){ enterW3(); }
+
+  // Keep stamina ticking
+  setInterval(tick, 250);
+})();
+</script>
+
 </body>
 </html>
