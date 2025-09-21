@@ -315,12 +315,14 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const LB_COLLECTION = "leaderboard";
 
+
+function lbCollectionName(){ try { return (meta && meta.activeWorld==='w2') ? (LB_COLLECTION + '_w2') : (LB_COLLECTION + '_w1'); } catch(e) { return LB_COLLECTION + '_w1'; } }
 function normalizeName(name){ return (name||"").trim().toLowerCase(); }
 
 // Upsert: one row per name (case-insensitive). Only updates if new score is higher.
 async function submitOnlineUpsert(name, score){
   const nameKey = normalizeName(name);
-  const coll = collection(db, LB_COLLECTION);
+  const coll = collection(db, lbCollectionName());
   const q = query(coll, where("nameKey","==",nameKey), limit(1));
   const snap = await getDocs(q);
 
@@ -345,7 +347,7 @@ async function submitOnlineUpsert(name, score){
 }
 
 async function fetchTop(){
-  const q = query(collection(db, LB_COLLECTION), orderBy("score", "desc"), limit(50));
+  const q = query(collection(db, lbCollectionName()), orderBy("score", "desc"), limit(50));
   const snap = await getDocs(q);
   const rows = [];
   snap.forEach(doc=>{
@@ -934,7 +936,8 @@ function renderPrestige(){
 }
 document.getElementById('prestigeBtn').addEventListener('click', ()=>{
   const S=currentWorld();
-  const bonus = 1 + 0.10*(S.uniqueLevels.diamond_pp_bonus||0);
+  const prevScore = totalScore();
+const bonus = 1 + 0.10*(S.uniqueLevels.diamond_pp_bonus||0);
   const pp = Math.floor((S.resources.diamond/1000) * bonus);
 
   const isW2 = (meta.activeWorld === 'w2');
@@ -973,7 +976,9 @@ if(isW2){
   F.stamina = Math.min(F.stamina, F.maxStamina);
 }
 
-renderAll(); updateAll(); saveLocal();
+// Preserve score across prestige
+  if(isW2){ meta.lifetimeScoreW2 = prevScore; } else { meta.lifetimeScoreW1 = prevScore; }
+  renderAll(); updateAll(); saveLocal();
 });
 
 
