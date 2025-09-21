@@ -3045,5 +3045,64 @@ window.W3Module = {
 })();
 </script>
 
+
+<style>
+/* Non-invasive theme for World 3 */
+body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
+</style>
+<script type="module">
+// Make World 3 behave like other worlds (full-screen swap) without modifying existing code.
+(function(){
+  const _updateRU = window.updateResourceUI;
+  window.updateResourceUI = function(){
+    if(_updateRU) _updateRU();
+    try{
+      const isW3 = (window.meta && meta.activeWorld==='w3');
+
+      // Theme swap
+      document.body.classList.toggle('theme-w3', isW3);
+      if(isW3){
+        document.body.classList.remove('theme-w1');
+        document.body.classList.remove('theme-w2');
+      }
+
+      // Left-panel visibility
+      const rg = document.getElementById('resourceGrid'); if(rg) rg.classList.toggle('hidden', isW3);
+      const fe = document.getElementById('fishingEmbed'); if(fe) fe.classList.toggle('hidden', isW3);
+      const w3 = document.getElementById('w3Embed'); if(w3) w3.classList.toggle('hidden', !isW3);
+
+      // Right-panel: hide all tabs/panels during W3 to make it "full screen" swap
+      const panelIds = ['panelShop','panelUnlocks','panelUnique','panelGarden','panelPrestige','panelWorlds','panelLeaderboard','panelAchievements','panelQuests'];
+      const tabIds   = ['tabShop','tabUnlocks','tabUnique','tabGarden','tabPrestige','tabWorlds','tabLeaderboard','tabAchievements','tabQuests'];
+      panelIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.toggle('hidden', isW3); });
+      tabIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.toggle('hidden', isW3); });
+
+      // Labels
+      const wn=document.getElementById('worldName'); if(wn && isW3) wn.textContent='World 3';
+      const lt=document.getElementById('leftTitleText'); if(lt && isW3) lt.textContent='World 3';
+      const ls=document.getElementById('leftSub'); if(ls && isW3) ls.textContent='Combat mode.';
+
+      // When leaving W3, restore hidden panels (the original code manages visibility too)
+      if(!isW3){
+        panelIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        tabIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        document.body.classList.remove('theme-w3');
+      }
+    }catch(e){}
+  };
+
+  // Ensure clicking Enter World 3 triggers a full update & save
+  const _enterWorld3 = window.enterWorld3;
+  window.enterWorld3 = function(){
+    try{
+      if(_enterWorld3) _enterWorld3(); else { if(window.meta){ if(!meta.worldsUnlocked) meta.worldsUnlocked={w1:true,w2:false}; meta.worldsUnlocked.w3=true; meta.activeWorld='w3'; } }
+      if(window.renderAll) renderAll();
+      if(window.updateAll) updateAll();
+      if(window.saveLocal) saveLocal();
+    }catch(e){}
+  };
+})();
+</script>
+
 </body>
 </html>
