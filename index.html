@@ -566,20 +566,8 @@ document.getElementById('clearTextBtn').addEventListener('click', ()=> box.value
 
 // Score helpers
 function weightedOfValues(vals, obj){ let t=0; for(const k in obj){ t += (vals[k]||0) * (obj[k]||0); } return t; }
-function weightedCurrent(){
-  if(meta.worldsUnlocked.w2){
-    return meta.activeWorld==='w2' ? weightedOfValues(VALUES_W2, currentWorld().resources) : 0;
-  } else {
-    return weightedOfValues(VALUES_W1, currentWorld().resources);
-  }
-}
-function totalScore(){
-  if(meta.worldsUnlocked.w2){
-    return (meta.lifetimeScoreW2||0) + (meta.activeWorld==='w2' ? weightedOfValues(VALUES_W2, worlds.w2.resources) : 0);
-  } else {
-    return (meta.lifetimeScoreW1||0) + weightedOfValues(VALUES_W1, worlds.w1.resources);
-  }
-}
+function weightedCurrent(){ if(meta.worldsUnlocked.w2){   return meta.activeWorld==='w2' ? (currentWorld().coins||0) : 0; } else {   return weightedOfValues(VALUES_W1, currentWorld().resources); }}
+function totalScore(){ if(meta.worldsUnlocked.w2){   return (meta.lifetimeScoreW2||0) + (meta.activeWorld==='w2' ? (worlds.w2.coins||0) : 0); } else {   return (meta.lifetimeScoreW1||0) + weightedOfValues(VALUES_W1, worlds.w1.resources); }}
 
 // Banking spend into lifetime per-world (coins don't affect score directly)
 function weightedOfCostForActive(cost){
@@ -1150,9 +1138,9 @@ const FISHES = [
   { key:'bigcarp',  name:'Big Carp',     rodReq:2, rarity:'rare',      coin:55 },
   { key:'golden',   name:'Golden Carp',  rodReq:3, rarity:'epic',      coin:300 },
   { key:'catking',  name:'Catfish King', rodReq:3, rarity:'epic',      coin:160 },
-  { key:'diamondfish', name:'Diamond Fish', rodReq:4, rarity:'legendary', coin:600, diamonds:1 },
+  { key:'diamondfish', name:'Diamond Fish', rodReq:4, rarity:'legendary', coin:600 },
   { key:'marlin',   name:'Marlin',       rodReq:4, rarity:'legendary', coin:500 },
-  { key:'leviathan',name:'Leviathan',    rodReq:5, rarity:'mythic',    coin:2000, diamonds:10 },
+  { key:'leviathan',name:'Leviathan',    rodReq:5, rarity:'mythic',    coin:2000 },
   { key:'abyssray', name:'Abyssal Ray',  rodReq:5, rarity:'mythic',    coin:1200 }
 ];
 const RARITY_BASE_WEIGHT = { common: 100, uncommon: 45, rare: 18, epic: 7, legendary: 2.5, mythic: 0.7 };
