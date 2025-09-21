@@ -3104,5 +3104,248 @@ body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
 })();
 </script>
 
+
+<script type="module">
+(function(){
+  const DEFAULT = {
+  hp:100, maxHp:100,
+  stamina:10, maxStamina:10,
+  staminaRegenMs:4000,
+  hpRegenRate:0,
+  weaponLevel:0,
+  precisionLevel:0,
+  trophies:0,
+  pp:0,
+  damageMult:1,
+  trophyMult:1,
+  prestigeBoostMaxStam:0,
+  prestigeBoostRegen:0,
+  prestigeBoostMaxHp:0,
+  prestigeBoostHpRegen:0,
+  runUpgrades:{},
+  currentMob:null,
+  maxFloor:1,
+  lastRegen:Date.now()
+};
+  const BASE_MOBS = {
+  1:[{id:'slime',name:'Slime',hp:30,atk:2,reward:15},{id:'goblin',name:'Goblin',hp:90,atk:4,reward:35}],
+  2:[{id:'orc',name:'Orc',hp:250,atk:10,reward:120},{id:'troll',name:'Troll',hp:400,atk:16,reward:200}],
+  3:[{id:'wyvern',name:'Wyvern',hp:1000,atk:30,reward:700},{id:'demon',name:'Demon',hp:1700,atk:50,reward:1200}],
+  4:[{id:'dragon',name:'Dragon',hp:5000,atk:120,reward:5000},{id:'leviathan',name:'Leviathan',hp:9000,atk:200,reward:11000}]
+};
+
+  let W3 = Object.assign({}, DEFAULT);
+  const $ = (id) => document.getElementById(id);
+
+  function ensureW3Container(){
+    if($('w3Embed')) return $('w3Embed');
+    const host = $('panelLeft') || document.body;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = "<div id=\"w3Embed\" class=\"hidden\"><style>#w3Embed .layout{display:grid;grid-template-columns:360px 1fr;gap:12px}\n#w3Embed .card{background:#111827;padding:12px;border-radius:8px}\n#w3Embed button{padding:6px 10px;border:none;border-radius:6px;background:#22c55e;color:#000;cursor:pointer;margin:2px}\n#w3Embed button.small{font-size:13px;padding:5px 8px}\n#w3Embed button.red{background:#ef4444;color:#fff}\n#w3Embed .muted{color:#9ca3af;font-size:13px}\n#w3Embed .progress{width:100%;height:18px;background:#222;border-radius:8px;overflow:hidden;margin-top:6px}\n#w3Embed .bar{height:100%;width:0%;background:green;transition:width 0.1s linear}</style><div class=\"card\"><h3>World 3 \u2014 Combat</h3></div>\n<h1>World 3 \u2014 Combat & Prestige (Clean Rebuild)</h1>\n<div class=\"layout\">\n<div>\n  <div class=\"card\">\n    <div>HP: <span id=\"w3_playerHp\"></span> / <span id=\"w3_playerMaxHp\"></span></div>\n    <div>Stamina: <span id=\"w3_playerStam\"></span> / <span id=\"w3_playerMaxStam\"></span></div>\n    <div>Trophies: <span id=\"w3_trophyCount\"></span></div>\n    <div>Prestige Points: <span id=\"w3_ppCount\"></span></div>\n    <hr>\n    <div id=\"w3_mobBox\">No mob selected</div>\n    <div id=\"w3_mobControls\"></div>\n    <div style=\"margin-top:8px\">\n      <button id=\"w3_attackBtn\" class=\"small red\">Attack</button>\n      <div id=\"w3_phaseInfo\" style=\"display:none;margin-top:6px\">\n        <div class=\"muted\">Time left: <span id=\"w3_miniTime\"></span>s \u2022 Clicks: <span id=\"w3_miniClicks\"></span></div>\n        <div class=\"progress\"><div id=\"w3_progressBar\" class=\"bar\"></div></div>\n      </div>\n    </div>\n  </div>\n\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Run Upgrades</h3>\n    <div id=\"w3_runUpgrades\"></div>\n  </div>\n\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Prestige</h3>\n    <div id=\"w3_prestigeArea\"></div>\n  </div>\n</div>\n\n<div>\n  <div class=\"card\">\n    <h3>Floors & Mobs</h3>\n    <div id=\"w3_floorMobs\"></div>\n    <div id=\"w3_floorShop\"></div>\n  </div>\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Prestige Shop</h3>\n    <div id=\"w3_prestigeShop\"></div>\n  </div>\n</div>\n</div>\n\n\n</div>";
+    const node = wrap.firstElementChild;
+    const marker = $('leftSub');
+    if(marker && marker.parentNode){ marker.parentNode.insertBefore(node, marker.nextSibling); }
+    else host.appendChild(node);
+    return node;
+  }
+
+  
+const DEFAULT = {
+  hp:100, maxHp:100,
+  stamina:10, maxStamina:10,
+  staminaRegenMs:4000,
+  hpRegenRate:0,
+  weaponLevel:0,
+  precisionLevel:0,
+  trophies:0,
+  pp:0,
+  damageMult:1,
+  trophyMult:1,
+  prestigeBoostMaxStam:0,
+  prestigeBoostRegen:0,
+  prestigeBoostMaxHp:0,
+  prestigeBoostHpRegen:0,
+  runUpgrades:{},
+  currentMob:null,
+  maxFloor:1,
+  lastRegen:Date.now()
+};
+
+let W3 = Object.assign({}, DEFAULT);
+
+const BASE_MOBS = {
+  1:[{id:'slime',name:'Slime',hp:30,atk:2,reward:15},{id:'goblin',name:'Goblin',hp:90,atk:4,reward:35}],
+  2:[{id:'orc',name:'Orc',hp:250,atk:10,reward:120},{id:'troll',name:'Troll',hp:400,atk:16,reward:200}],
+  3:[{id:'wyvern',name:'Wyvern',hp:1000,atk:30,reward:700},{id:'demon',name:'Demon',hp:1700,atk:50,reward:1200}],
+  4:[{id:'dragon',name:'Dragon',hp:5000,atk:120,reward:5000},{id:'leviathan',name:'Leviathan',hp:9000,atk:200,reward:11000}]
+};
+
+// ---------- Rendering ----------
+function w3_renderAll(){
+  document.getElementById('w3_playerHp').textContent = W3.hp;
+  document.getElementById('w3_playerMaxHp').textContent = W3.maxHp + (W3.prestigeBoostMaxHp||0);
+  document.getElementById('w3_playerStam').textContent = W3.stamina;
+  document.getElementById('w3_playerMaxStam').textContent = W3.maxStamina + (W3.prestigeBoostMaxStam||0);
+  document.getElementById('w3_trophyCount').textContent = W3.trophies;
+  document.getElementById('w3_ppCount').textContent = W3.pp;
+
+  w3_renderMobBox();
+  w3_renderRunUpgrades();
+  w3_renderPrestigeArea();
+  w3_renderFloors();
+  w3_renderPrestigeShop();
+}
+
+function w3_renderMobBox(){
+  const box=document.getElementById('w3_mobBox');
+  if(W3.currentMob){
+    box.innerHTML = W3.currentMob.name+" HP:"+W3.currentMob.hp;
+    document.getElementById('w3_mobControls').innerHTML='<button onclick="w3_flee()">Flee</button>';
+  } else {
+    let html='';
+    for(let f=1;f<=W3.maxFloor;f++){
+      html += '<div>Floor '+f+': ';
+      (BASE_MOBS[f]||[]).forEach(m=>{
+        html += '<button onclick="w3_enterMob('+f+',\''+m.id+'\')">'+m.name+'</button>';
+      });
+      html+='</div>';
+    }
+    box.innerHTML=html;
+    document.getElementById('w3_mobControls').innerHTML='';
+  }
+}
+
+function w3_renderRunUpgrades(){
+  const box=document.getElementById('w3_runUpgrades'); box.innerHTML='';
+  function addBtn(name,cost,level,fn){
+    let b=document.createElement('button');
+    b.textContent=name+" Lv."+level+" (Cost "+cost+")";
+    b.disabled=W3.trophies<cost;
+    b.onclick=()=>{ if(W3.trophies<cost) return; W3.trophies-=cost; fn(); w3_renderAll(); };
+    box.appendChild(b);
+  }
+  addBtn("Sharper Sword",100*Math.pow(2,W3.weaponLevel||0),W3.weaponLevel||0,()=>{W3.weaponLevel++;});
+  addBtn("Precision",100*Math.pow(2,W3.precisionLevel||0),W3.precisionLevel||0,()=>{W3.precisionLevel++;});
+  addBtn("Max Stamina",150*Math.pow(2,W3.runUpgrades.maxStam||0),W3.runUpgrades.maxStam||0,()=>{W3.runUpgrades.maxStam=(W3.runUpgrades.maxStam||0)+1;W3.maxStamina+=5;W3.stamina+=5;});
+  addBtn("Stamina Regen",200*Math.pow(2,W3.runUpgrades.regen||0),W3.runUpgrades.regen||0,()=>{W3.runUpgrades.regen=(W3.runUpgrades.regen||0)+1;W3.staminaRegenMs=Math.max(500,Math.floor(W3.staminaRegenMs*0.85));});
+  addBtn("Max HP",200*Math.pow(2,W3.runUpgrades.maxHp||0),W3.runUpgrades.maxHp||0,()=>{W3.runUpgrades.maxHp=(W3.runUpgrades.maxHp||0)+1;W3.maxHp+=20;W3.hp+=20;});
+  addBtn("HP Regen",250*Math.pow(2,W3.runUpgrades.hpRegen||0),W3.runUpgrades.hpRegen||0,()=>{W3.runUpgrades.hpRegen=(W3.runUpgrades.hpRegen||0)+1;W3.hpRegenRate=(W3.hpRegenRate||0)+2;});
+}
+
+function w3_renderPrestigeArea(){
+  const box=document.getElementById('w3_prestigeArea'); box.innerHTML='';
+  const b=document.createElement('button');
+  b.textContent="Prestige (5000 trophies = 1 PP)";
+  b.disabled=W3.trophies<5000;
+  b.onclick=()=>{let gain=Math.floor(W3.trophies/5000);W3.pp+=gain;W3.trophies=0;W3.weaponLevel=0;W3.precisionLevel=0;W3.runUpgrades={};W3.hp=W3.maxHp;W3.stamina=W3.maxStamina;W3.currentMob=null;alert("Prestiged +"+gain+" PP");w3_renderAll();};
+  box.appendChild(b);
+}
+
+function w3_renderFloors(){
+  const box=document.getElementById('w3_floorMobs'); box.innerHTML='';
+  for(let f=1;f<=W3.maxFloor;f++){
+    box.innerHTML+='<div>Floor '+f+' has '+(BASE_MOBS[f]||[]).map(m=>m.name).join(', ')+'</div>';
+  }
+  const shop=document.getElementById('w3_floorShop'); shop.innerHTML='';
+  let next=W3.maxFloor+1; let cost=Math.pow(5,next-1);
+  let b=document.createElement('button');
+  b.textContent="Unlock Floor "+next+" (Cost "+cost+" PP)";
+  b.disabled=W3.pp<cost;
+  b.onclick=()=>{if(W3.pp<cost)return;W3.pp-=cost;W3.maxFloor++;w3_renderAll();};
+  shop.appendChild(b);
+}
+
+function w3_renderPrestigeShop(){
+  const box=document.getElementById('w3_prestigeShop'); box.innerHTML='';
+  function addBtn(name,cost,desc,fn){
+    let b=document.createElement('button'); b.textContent=name+" (Cost "+cost+") "+desc; b.disabled=W3.pp<cost; b.onclick=()=>{if(W3.pp<cost)return;W3.pp-=cost;fn();w3_renderAll();}; box.appendChild(b);
+  }
+  addBtn("2x Damage",2,"x"+W3.damageMult,()=>{W3.damageMult*=2;});
+  addBtn("2x Trophies",2,"x"+W3.trophyMult,()=>{W3.trophyMult*=2;});
+  addBtn("+5 Max Stamina",3,"Owned "+W3.prestigeBoostMaxStam,()=>{W3.prestigeBoostMaxStam+=5;W3.maxStamina+=5;W3.stamina+=5;});
+  addBtn("+10% Stamina Regen",3,"Owned "+Math.round(W3.prestigeBoostRegen*100)+"%",()=>{W3.prestigeBoostRegen+=0.10;W3.staminaRegenMs=Math.max(300,Math.floor(W3.staminaRegenMs*0.9));});
+  addBtn("+20 Max HP",3,"Owned "+W3.prestigeBoostMaxHp,()=>{W3.prestigeBoostMaxHp+=20;W3.maxHp+=20;W3.hp+=20;});
+  addBtn("+2 HP Regen/5s",3,"Owned "+W3.prestigeBoostHpRegen,()=>{W3.prestigeBoostHpRegen+=2;});
+}
+
+// ---------- Combat ----------
+let miniActive=false, miniClicks=0, miniTimer=null;
+function w3_enterMob(f,id){ W3.currentMob=Object.assign({},(BASE_MOBS[f]||[]).find(x=>x.id==id)); w3_renderAll(); }
+function w3_flee(){ W3.currentMob=null; w3_renderAll(); }
+function w3_startAttackPhase(){
+  if(!W3.currentMob) return alert("Pick mob"); if(W3.stamina<=0) return alert("No stamina");
+  W3.stamina--; miniActive=true; miniClicks=0; let time=3;
+  document.getElementById('w3_phaseInfo').style.display='block';
+  document.getElementById('w3_miniTime').textContent=time; document.getElementById('w3_miniClicks').textContent=0;
+  const btn=document.getElementById('w3_attackBtn'); btn.textContent="Hit!"; btn.onclick=registerHit;
+  miniTimer=
+}
+function w3_registerHit(){ if(!miniActive)return; miniClicks++; document.getElementById('w3_miniClicks').textContent=miniClicks; document.getElementById('w3_progressBar').style.width=Math.min(100,(miniClicks/20)*100)+'%'; }
+function w3_endAttackPhase(){
+  clearInterval(miniTimer); miniTimer=null; miniActive=false;
+  document.getElementById('w3_phaseInfo').style.display='none'; document.getElementById('w3_progressBar').style.width='0%';
+  const btn=document.getElementById('w3_attackBtn'); btn.textContent="Attack"; btn.onclick=startAttackPhase;
+  if(!W3.currentMob) return;
+  let base=5+(W3.weaponLevel*3); let min=10+(W3.precisionLevel*5); let max=min+10; let scaled=min+(miniClicks/20)*(max-min); if(scaled>max)scaled=max;
+  let dmg=(base+Math.floor(scaled))*(W3.damageMult||1);
+  W3.currentMob.hp-=Math.floor(dmg);
+  if(W3.currentMob.hp<=0){ W3.trophies+=Math.floor(W3.currentMob.reward*(W3.trophyMult||1)); W3.currentMob=null; } else { W3.hp-=W3.currentMob.atk; if(W3.hp<=0){ W3.hp=W3.maxHp; W3.trophies=Math.max(0,Math.floor(W3.trophies*0.9)); } }
+  w3_renderAll();
+}
+
+// ---------- Regen ----------
+
+
+document.getElementById('w3_attackBtn').onclick=startAttackPhase;
+w3_renderAll();
+
+
+  window.W3 = W3;
+  window.w3_renderAll = w3_renderAll;
+  window.w3_startAttackPhase = w3_startAttackPhase;
+
+  function w3_tick(){
+    try { if(window.meta && meta.activeWorld==='w3') w3_renderAll(); } catch(e) {}
+  }
+
+  const _updateResourceUI = window.updateResourceUI;
+  window.updateResourceUI = function(){
+    if(_updateResourceUI) _updateResourceUI();
+    try{
+      const isW3 = (window.meta && meta.activeWorld==='w3');
+      const rg = $('resourceGrid'); if(rg) rg.classList.toggle('hidden', isW3);
+      const fe = $('fishingEmbed'); if(fe) fe.classList.toggle('hidden', isW3);
+      const w3 = ensureW3Container(); if(w3) w3.classList.toggle('hidden', !isW3);
+      if(isW3){
+        const wn=$('worldName'); if(wn) wn.textContent='World 3';
+        const lt=$('leftTitleText'); if(lt) lt.textContent='World 3';
+        const ls=$('leftSub'); if(ls) ls.textContent='Combat mode.';
+        const atk = $('w3_attackBtn');
+        if(atk && !atk.dataset.w3bound){ atk.dataset.w3bound='1'; atk.addEventListener('click', ()=> w3_startAttackPhase()); }
+        window.scrollTo({top:0, behavior:'instant'});
+      }
+    }catch(e){}
+  };
+
+  window.enterWorld3 = function(){
+    try{
+      if(!window.meta) return;
+      if(!meta.worldsUnlocked) meta.worldsUnlocked={w1:true,w2:false};
+      if(typeof meta.worldsUnlocked.w3==='undefined') meta.worldsUnlocked.w3 = true;
+      meta.activeWorld = 'w3';
+      ensureW3Container();
+      if(window.renderAll) renderAll();
+      if(window.updateAll) updateAll();
+      if(window.saveLocal) saveLocal();
+      window.scrollTo({top:0, behavior:'smooth'});
+    }catch(e){}
+  };
+
+  const tab = $('tabWorlds'); if(tab) tab.addEventListener('click', ()=> setTimeout(()=>{ if($('enterW3')) $('enterW3').onclick = window.enterWorld3; }, 50));
+
+  setInterval(w3_tick, 1000);
+})();
+</script>
+
 </body>
 </html>
