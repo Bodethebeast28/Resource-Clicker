@@ -3480,8 +3480,9 @@ body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
 </script>
 
 
+
 <style>
-/* Force-hide all other content while in W3 */
+/* Force-hide all other content while in W3 (full-screen swap) */
 body.theme-w3 #resourceGrid,
 body.theme-w3 #fishingEmbed,
 body.theme-w3 #panelShop,
@@ -3503,8 +3504,8 @@ body.theme-w3 #tabLeaderboard,
 body.theme-w3 #tabAchievements,
 body.theme-w3 #tabQuests { display: none !important; }
 
-/* W3 container styling, scoped */
-#w3Full { display:none; }
+/* W3 container */
+#w3Full { display:none; margin-top:8px; }
 body.theme-w3 #w3Full { display:block; }
 #w3Full .w3-grid { display:grid; grid-template-columns: 1.1fr 0.9fr; gap:12px; }
 #w3Full .card { background:#fff; padding:12px; border-radius:10px; box-shadow:0 6px 18px rgba(2,6,23,0.06); }
@@ -3532,7 +3533,17 @@ body.theme-w3 #w3Full { display:block; }
     wrap.className = 'card';
     wrap.innerHTML = `
       <h3>World 3 — Combat</h3>
-      <div class="muted">Fight mobs, earn trophies, and prestige. (Standalone UI)</div>
+      <div class="muted">Fight mobs, earn trophies, unlock floors. Each floor has 2 tougher mobs.</div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">
+        <div>Floor: <span id="w3_floor" class="stat">1</span> / <span id="w3_floorMax" class="stat">1</span></div>
+        <div class="row">
+          <button id="w3_prevFloor" class="upg" style="padding:6px 10px">Prev Floor</button>
+          <button id="w3_nextFloor" class="upg" style="padding:6px 10px">Next Floor</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="w3_unlockFloor" class="upg"><div><strong>Unlock Next Floor</strong></div><div class="muted" id="w3_unlockCost">Cost: — trophies</div></button>
+      </div>
       <div class="w3-grid" style="margin-top:8px">
         <div class="card">
           <div class="row" style="justify-content:space-between">
@@ -3551,13 +3562,13 @@ body.theme-w3 #w3Full { display:block; }
             <div class="muted" id="w3_floorInfo" style="margin-top:6px">Floor 1</div>
             <div class="row" style="margin-top:8px">
               <button id="w3_attack" class="upg" style="text-align:center"><div><strong>Attack</strong></div><div class="muted">Costs 1 stamina</div></button>
-              <button id="w3_flee" class="upg" style="text-align:center"><div><strong>Flee</strong></div><div class="muted">Swap to next mob</div></button>
+              <button id="w3_flee" class="upg" style="text-align:center"><div><strong>Flee</strong></div><div class="muted">Swap to next mob (same floor)</div></button>
             </div>
           </div>
         </div>
         <div class="card">
           <div><strong>Trophies:</strong> <span id="w3_trophies" class="stat">0</span></div>
-          <div class="muted" style="margin:4px 0 8px 0;">Use trophies to upgrade your run.</div>
+          <div class="muted" style="margin:4px 0 8px 0;">Use trophies to upgrade your run or unlock more floors.</div>
           <div class="grid2">
             <button id="w3_upg_power" class="upg">
               <div><strong>+2 Power</strong></div>
@@ -3589,29 +3600,79 @@ body.theme-w3 #w3Full { display:block; }
     return wrap;
   }
 
-  // Simple standalone W3 state
+  // Base mobs (sorted by HP asc)
+  const BASE_MOBS = [
+    {name:'Slime', hp:30, reward:3},
+    {name:'Blue Slime', hp:40, reward:4},
+    {name:'Wolf', hp:50, reward:5},
+    {name:'Boar', hp:80, reward:7},
+    {name:'Ogre', hp:120, reward:12},
+    {name:'Golem', hp:200, reward:18},
+    {name:'Dragon Whelp', hp:350, reward:30},
+    {name:'Wyvern', hp:480, reward:40}
+  ].sort((a,b)=>a.hp-b.hp);
+
+  // Group into floors of 2 mobs each (last may have 1)
+  function floorsFromMobs(list){
+    const f=[];
+    for(let i=0;i<list.length;i+=2){
+      f.push(list.slice(i,i+2));
+    }
+    return f;
+  }
+
+  const FLOORS = floorsFromMobs(BASE_MOBS);
+  const UNLOCK_COSTS = [70, 180]; // cost to unlock floor 2, then floor 3 (stop afterwards unless extended)
+
   const W3 = {
     hp: 60, hpMax: 60,
     stam: 10, stamMax: 10,
     regenMs: 1200, lastRegen: Date.now(),
     power: 5,
     trophies: 0,
-    floor: 1,
-    mobs: [
-      {name:'Slime', hp:30, max:30, reward:3},
-      {name:'Wolf', hp:50, max:50, reward:5},
-      {name:'Ogre', hp:120, max:120, reward:12},
-      {name:'Golem', hp:200, max:200, reward:18},
-      {name:'Dragon Whelp', hp:350, max:350, reward:30}
-    ],
-    mobIndex: 0
+    // floors
+    unlockedFloors: 1,   // you start with Floor 1 unlocked
+    currentFloor: 1,     // 1-based floor index for UI
+    mobIdx: 0
   };
 
-  function currentMob(){ return W3.mobs[W3.mobIndex]; }
+  function currentFloorMobs(){
+    const idx = Math.max(1, Math.min(W3.currentFloor, W3.unlockedFloors)) - 1; // zero-based
+    return FLOORS[idx] || [];
+  }
+  function currentMob(){
+    const mobs = currentFloorMobs();
+    if(mobs.length===0) return null;
+    return mobs[Math.max(0, Math.min(W3.mobIdx, mobs.length-1))];
+  }
+
+  // Extend current mob with runtime hp
+  const runtime = { mobHp: (currentFloorMobs()[0]||{hp:0}).hp };
+
+  function setMob(index){
+    const mobs = currentFloorMobs();
+    if(mobs.length===0) return;
+    W3.mobIdx = ((index% mobs.length)+mobs.length)%mobs.length;
+    runtime.mobHp = mobs[W3.mobIdx].hp;
+  }
+
+  function nextMob(){ setMob(W3.mobIdx + 1); }
+
+  function unlockNextFloor(){
+    const next = W3.unlockedFloors + 1;
+    const cost = UNLOCK_COSTS[next-2]; // floor 2->index 0, floor3->index1
+    if(!cost) return; // no further floors defined
+    if(W3.trophies < cost) return;
+    W3.trophies -= cost;
+    W3.unlockedFloors = next;
+    // auto-switch to the newly unlocked floor
+    W3.currentFloor = next;
+    setMob(0);
+    render();
+  }
 
   function render(){
-    const el = ensureW3();
-    if(!el) return;
+    ensureW3();
     // Player
     $('w3_hp').textContent = W3.hp;
     $('w3_hpmax').textContent = W3.hpMax;
@@ -3621,46 +3682,61 @@ body.theme-w3 #w3Full { display:block; }
     $('w3_stam').textContent = W3.stam;
     $('w3_stammax').textContent = W3.stamMax;
 
-    // Mob
+    // Floor info
+    $('w3_floor').textContent = W3.currentFloor;
+    $('w3_floorMax').textContent = W3.unlockedFloors;
+    $('w3_floorInfo').textContent = 'Floor ' + W3.currentFloor;
+
+    // Unlock button
+    const next = W3.unlockedFloors + 1;
+    const cost = UNLOCK_COSTS[next-2];
+    const btn = $('w3_unlockFloor');
+    const costEl = $('w3_unlockCost');
+    if(cost){
+      btn.disabled = W3.trophies < cost;
+      costEl.textContent = 'Cost: ' + cost + ' trophies';
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden'); // no more floors to unlock with given costs
+    }
+
+    // Mob box
     const m = currentMob();
-    $('w3_mobName').textContent = m.name;
-    $('w3_mobHp').textContent = m.hp;
-    $('w3_mobHpMax').textContent = m.max;
-    $('w3_mobBar').max = m.max;
-    $('w3_mobBar').value = m.hp;
+    if(m){
+      $('w3_mobName').textContent = m.name;
+      $('w3_mobHp').textContent = runtime.mobHp;
+      $('w3_mobHpMax').textContent = m.hp;
+      $('w3_mobBar').max = m.hp;
+      $('w3_mobBar').value = runtime.mobHp;
+    }
 
-    $('w3_floorInfo').textContent = 'Floor ' + W3.floor;
+    // Trophies & Costs
     $('w3_trophies').textContent = W3.trophies;
-
-    // Costs
     $('w3_cost_power').textContent = 'Cost: ' + (5 + W3.power);
     $('w3_cost_stamina').textContent = 'Cost: ' + (6 + Math.floor((W3.stamMax-10)/2)*2);
     $('w3_cost_regen').textContent = 'Cost: ' + Math.max(8 - Math.floor((1600 - W3.regenMs)/200), 4);
     $('w3_cost_hp').textContent = 'Cost: ' + (7 + Math.floor((W3.hpMax-60)/10)*3);
-  }
 
-  function nextMob(){
-    W3.mobIndex = (W3.mobIndex + 1) % W3.mobs.length;
-    if(W3.mobIndex === 0){ W3.floor += 1; }
-    const m = currentMob();
-    m.hp = m.max;
-    render();
+    // Floor nav buttons
+    const prev = $('w3_prevFloor');
+    const nextbtn = $('w3_nextFloor');
+    prev.disabled = (W3.currentFloor <= 1);
+    nextbtn.disabled = (W3.currentFloor >= W3.unlockedFloors);
   }
 
   function attack(){
     if(W3.stam <= 0) return;
+    const m = currentMob(); if(!m) return;
     W3.stam -= 1;
-    const m = currentMob();
-    m.hp = Math.max(0, m.hp - W3.power);
-    if(m.hp <= 0){
+    runtime.mobHp = Math.max(0, runtime.mobHp - W3.power);
+    if(runtime.mobHp <= 0){
       W3.trophies += m.reward;
+      // Respawn and rotate to the other mob on the same floor
       nextMob();
-    } else {
-      render();
     }
+    render();
   }
-
-  function flee(){ nextMob(); }
+  function flee(){ nextMob(); render(); }
 
   function tick(){
     const now = Date.now();
@@ -3687,22 +3763,25 @@ body.theme-w3 #w3Full { display:block; }
     el.querySelector('#w3_upg_stamina').onclick = ()=> buy(6 + Math.floor((W3.stamMax-10)/2)*2, ()=> W3.stamMax += 2);
     el.querySelector('#w3_upg_regen').onclick = ()=> buy(Math.max(8 - Math.floor((1600 - W3.regenMs)/200), 4), ()=> W3.regenMs = Math.max(400, W3.regenMs - 200));
     el.querySelector('#w3_upg_hp').onclick = ()=> buy(7 + Math.floor((W3.hpMax-60)/10)*3, ()=> W3.hpMax += 10);
+    el.querySelector('#w3_unlockFloor').onclick = unlockNextFloor;
+    el.querySelector('#w3_prevFloor').onclick = ()=>{ if(W3.currentFloor>1){ W3.currentFloor--; setMob(0); render(); } };
+    el.querySelector('#w3_nextFloor').onclick = ()=>{ if(W3.currentFloor<W3.unlockedFloors){ W3.currentFloor++; setMob(0); render(); } };
   }
 
-  // Full-screen switcher (force)
+  // Entry: make the screen full W3
   function enterW3(){
     document.body.classList.add('theme-w3');
-    // Update headings
     const wn = $('worldName'); if(wn) wn.textContent = 'World 3';
     const lt = $('leftTitleText'); if(lt) lt.textContent = 'World 3';
     const ls = $('leftSub'); if(ls) ls.textContent = 'Combat mode.';
     ensureW3();
+    setMob(0);
     render();
     bind();
     window.scrollTo({top:0, behavior:'smooth'});
   }
 
-  // Click delegation: any button with id enterW3 or text containing "Enter World 3"
+  // Click delegation: any "Enter World 3" button
   document.addEventListener('click', (e)=>{
     const t = e.target;
     if(!t) return;
@@ -3712,13 +3791,12 @@ body.theme-w3 #w3Full { display:block; }
     }
   });
 
-  // If hash is #w3, enter automatically
   if(location.hash === '#w3'){ enterW3(); }
 
-  // Keep stamina ticking
   setInterval(tick, 250);
 })();
 </script>
+
 
 </body>
 </html>
