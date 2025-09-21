@@ -66,17 +66,6 @@ table.lb th{font-weight:700}
 .warn{background:#fff7ed;color:#7c2d12;border:1px solid #fed7aa;padding:6px 8px;border-radius:8px;margin-top:6px}
 .coin{display:inline-block;padding:2px 8px;border-radius:999px;background:#fef9c3;color:#854d0e;border:1px solid #fde68a;font-size:12px}
 .hidden{display:none !important}
-
-/* Hide W1-only tabs & panels during World 2 */
-body.theme-w2 #tabShop,
-body.theme-w2 #tabUnique,
-body.theme-w2 #tabUnlocks,
-body.theme-w2 #tabGarden { display: none !important; }
-
-body.theme-w2 #panelShop,
-body.theme-w2 #panelUnique,
-body.theme-w2 #panelUnlocks,
-body.theme-w2 #panelGarden { display: none !important; }
 </style>
 </head>
 <body class="theme-w1">
@@ -615,6 +604,28 @@ function payCostCoins(n){
 
 // UI update incl. theme + coins + swapping left panel
 function updateResourceUI(){
+// --- W2 tab visibility guard (buttons + redirect) ---
+(function(){
+  const inW2 = (meta.activeWorld==='w2');
+  const tabIds = ['tabShop','tabUnlocks','tabUnique','tabGarden'];
+  tabIds.forEach(id=>{ const btn=document.getElementById(id); if(btn){ btn.classList.toggle('hidden', inW2); }});
+  if(inW2){
+    const activeBad = tabIds.some(id=>{ const b=document.getElementById(id); return b && b.classList.contains('active'); });
+    if(activeBad){ try{ showPanel('prestige'); }catch(e){} }
+  }
+})();
+
+// Hide W1-only panels when in World 2, but don't override tab visibility in W1
+['panelShop','panelUnlocks','panelUnique','panelGarden'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(!el) return;
+  if (meta.activeWorld === 'w2') {
+    el.classList.add('hidden');      // .hidden { display:none !important }
+  } else {
+    el.classList.remove('hidden');   // Let showPanel() manage display in W1
+  }
+});
+
   const S=currentWorld();
   const w2Unlocked = !!meta.worldsUnlocked.w2;
   document.body.classList.toggle('theme-w1', meta.activeWorld==='w1');
@@ -680,7 +691,7 @@ function updateResourceUI(){
     if(castEl){ castEl.disabled = F.stamina<=0; }
 
     // costs (W2 discounted)
-    document.getElementById('rodCost').textContent = 'Cost: ' + (applyW2DiscountCoins(Math.floor(800*Math.pow(2,(F.rodLevel||0)))).toLocaleString()) + ' Coins';
+    document.getElementById('rodCost').textContent = 'Cost: ' + (rodUpgradeCost(F.rodLevel||0)).toLocaleString() + ' Coins';
     document.getElementById('baitCost').textContent = 'Cost: ' + (applyW2DiscountCoins(Math.floor(1000*Math.pow(1.8,(F.baitLevel||0)))).toLocaleString()) + ' Coins';
     document.getElementById('tankCost').textContent = 'Cost: ' + (applyW2DiscountCoins(Math.floor(700*Math.pow(1.9,(F.tankLevel||0)))).toLocaleString()) + ' Coins';
     document.getElementById('regenCost').textContent = 'Cost: ' + (applyW2DiscountCoins(Math.floor(900*Math.pow(2.0,(F.regenLevel||0)))).toLocaleString()) + ' Coins';
@@ -963,12 +974,20 @@ document.getElementById('prestigeBtn').addEventListener('click', ()=>{
   const keepDiamond = S.uniqueLevels.diamond_pp_bonus||0;
   S.uniqueLevels = { wood_click_boost:0, stone_wood_click:0, iron_auto_passive:0, gold_frenzy:0, diamond_pp_bonus:keepDiamond };
   S.frenzyUntil=0; S.frenzyCooldownUntil=0;
-  // Keep fishing upgrades
-  const F=S.fishing;
+  
+// Reset fishing upgrades depending on world
+const F=S.fishing;
+if(isW2){
+  // In World 2, prestige should reset ALL fishing upgrades
+  S.fishing = newFishingState();
+} else {
+  // In World 1, keep fishing upgrades but normalize stamina to max
   F.stamina = Math.min(F.stamina, F.maxStamina);
+}
 
-  renderAll(); updateAll(); saveLocal();
+renderAll(); updateAll(); saveLocal();
 });
+
 
 // Prestige Shop (GLOBAL x3 scaling; applies to all worlds)
 function prestigeUpgradeCost(level){ return Math.pow(3, level); } // 1,3,9,27,...
@@ -1099,6 +1118,14 @@ function autoIntervalForLevel(lvl){
   lvl = Number(lvl)||0;
   const ms = 60000 - (lvl * 5000);
   return Math.max(1000, ms);
+}
+
+function rodUpgradeCost(level){
+  // Exact sequence: 250, 1500, 10000, 25000; then doubles afterwards
+  const seq = [250, 1500, 10000, 25000];
+  level = Number(level)||0;
+  if(level < seq.length) return applyW2DiscountCoins(seq[level]);
+  return applyW2DiscountCoins(Math.floor(seq[seq.length-1] * Math.pow(2, level - (seq.length-1))));
 }
 function autoUpgradeCost(level){
   return applyW2DiscountCoins( Math.floor(1500 * Math.pow(1.9, level||0)) );
@@ -1232,7 +1259,7 @@ function fishingSellAll(){
 function fishingUpgradeRod(){
   const S=currentWorld();
   const F=S.fishing;
-  const cost = applyW2DiscountCoins( Math.floor(800 * Math.pow(2, F.rodLevel||0)) );
+  const cost = rodUpgradeCost(F.rodLevel||0);
   if(!payCostCoins(cost)) return alert('Not enough Coins');
   F.rodLevel = (F.rodLevel||0)+1;
   F.maxStamina = 10 + 3*(F.rodLevel) + 5*(F.tankLevel||0);
