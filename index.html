@@ -3347,5 +3347,88 @@ w3_renderAll();
 })();
 </script>
 
+
+<style>
+/* Ensure W3 container sits at the top and fills available width */
+#w3Embed { margin-top: 8px; }
+body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
+</style>
+<script type="module">
+// Full-screen World 3 swap without touching prior code
+(function(){
+  const $ = (id) => document.getElementById(id);
+
+  function ensureW3Embed(){
+    let el = $('w3Embed');
+    if(!el){
+      const host = $('panelLeft') || document.body;
+      const wrap = document.createElement('div');
+      wrap.id = 'w3Embed';
+      wrap.className = 'card';
+      wrap.innerHTML = '<h3>World 3</h3><div class="small-muted">Loading combat UI…</div>';
+      // place right after the left subtitle if present
+      const marker = $('leftSub');
+      if(marker && marker.parentNode){ marker.parentNode.insertBefore(wrap, marker.nextSibling); }
+      else host.prepend(wrap);
+      el = wrap;
+    }
+    return el;
+  }
+
+  function hide(el, yes){
+    if(!el) return;
+    el.classList.toggle('hidden', !!yes);
+  }
+
+  function showWorld3(){
+    // Make sure the W3 container exists/visible
+    const w3 = ensureW3Embed();
+    // Theme change
+    document.body.classList.add('theme-w3');
+    document.body.classList.remove('theme-w1');
+    document.body.classList.remove('theme-w2');
+    // Hide W1/W2 left content
+    hide($('resourceGrid'), true);
+    hide($('fishingEmbed'), true);
+    hide(w3, false);
+
+    // Hide all right panels & tabs to mimic full world swap
+    const panelIds = ['panelShop','panelUnlocks','panelUnique','panelGarden','panelPrestige','panelWorlds','panelLeaderboard','panelAchievements','panelQuests'];
+    const tabIds   = ['tabShop','tabUnlocks','tabUnique','tabGarden','tabPrestige','tabWorlds','tabLeaderboard','tabAchievements','tabQuests'];
+    panelIds.forEach(id=> hide($(id), true));
+    tabIds.forEach(id=> hide($(id), true));
+
+    // Update headings
+    const wn = $('worldName'); if(wn) wn.textContent = 'World 3';
+    const lt = $('leftTitleText'); if(lt) lt.textContent = 'World 3';
+    const ls = $('leftSub'); if(ls) ls.textContent = 'Combat mode.';
+
+    // Scroll to top so UI isn't hidden at bottom
+    try { window.scrollTo({top:0, behavior:'smooth'}); } catch(e){}
+  }
+
+  // Global click delegation for any "Enter World 3" button
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(!t) return;
+    const isBtn = (t.id === 'enterW3') || (t.dataset && (t.dataset.w3enter === '1')) ||
+                  (/enter world 3/i.test(t.textContent || ''));
+    if(isBtn){
+      e.preventDefault();
+      showWorld3();
+    }
+  });
+
+  // Also attempt to show when URL hash is #w3 (optional)
+  if(location.hash === '#w3'){ showWorld3(); }
+
+  // If a prior script exposed enterWorld3(), reuse it
+  if(typeof window.enterWorld3 === 'function'){
+    const _enter = window.enterWorld3;
+    window.enterWorld3 = function(){ _enter(); showWorld3(); };
+  }
+})();
+</script>
+
 </body>
 </html>
