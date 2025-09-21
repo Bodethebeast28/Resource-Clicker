@@ -3430,5 +3430,54 @@ body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
 })();
 </script>
 
+
+<script type="module">
+// Ensure entering World 3 truly switches the *active* world and renders full W3 UI
+(function(){
+  function goWorld3(){
+    try{
+      // Switch active world
+      if(window.meta){
+        if(!meta.worldsUnlocked) meta.worldsUnlocked = { w1:true, w2:false };
+        meta.worldsUnlocked.w3 = true;
+        meta.activeWorld = 'w3';
+      }
+      // Trigger full UI cycle
+      if(window.renderAll) renderAll();
+      if(window.updateAll) updateAll();
+      if(window.saveLocal) saveLocal();
+      // Ensure fishing is hidden and W3 render runs if available
+      const fe = document.getElementById('fishingEmbed'); if(fe) fe.classList.add('hidden');
+      const rg = document.getElementById('resourceGrid'); if(rg) rg.classList.add('hidden');
+      if(window.w3_renderAll) try{ w3_renderAll(); }catch(e){}
+      // Top of screen
+      try { window.scrollTo({top:0, behavior:'smooth'}); } catch(e){}
+    }catch(e){}
+  }
+
+  // Bind any Enter World 3 buttons (even if added later)
+  function wire(){
+    const btns = Array.from(document.querySelectorAll('#enterW3, [data-w3enter="1"]'));
+    btns.forEach(b=>{
+      if(b.dataset._w3bound2) return;
+      b.dataset._w3bound2 = '1';
+      b.addEventListener('click', (e)=>{ e.preventDefault(); goWorld3(); });
+    });
+  }
+
+  // Initial + delayed binds
+  wire();
+  setTimeout(wire, 200);
+  setTimeout(wire, 800);
+
+  // Re-bind when switching to Worlds tab
+  const tab = document.getElementById('tabWorlds');
+  if(tab) tab.addEventListener('click', ()=>{ setTimeout(wire, 0); setTimeout(wire, 250); });
+
+  // Optional: URL hash trigger
+  if(location.hash === '#w3'){ goWorld3(); }
+})();
+</script>
+
 </body>
 </html>
