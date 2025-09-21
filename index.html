@@ -2874,5 +2874,82 @@ window.W3Module = {
 })();
 </script>
 
+
+<script type="module">
+// Ensure World 3 becomes visible when selected (non-invasive wrapper)
+(function(){
+  function ensureW3Container(){
+    // If a W3 embed already exists (from the W3 script), use it; otherwise add a minimal shell.
+    let el = document.getElementById('w3Embed');
+    if(!el){
+      const host = document.getElementById('panelLeft') || document.body;
+      const wrap = document.createElement('div');
+      wrap.id = 'w3Embed';
+      wrap.className = 'card hidden';
+      wrap.innerHTML = '<h3>World 3</h3><div class="small-muted">(Load completed. If you don\'t see combat UI, it may render in a moment.)</div>';
+      host.appendChild(wrap);
+      el = wrap;
+    }
+    return el;
+  }
+
+  // Wrap updateResourceUI so W3 shows/hides correctly
+  const _updateResourceUI = window.updateResourceUI;
+  window.updateResourceUI = function(){
+    if(_updateResourceUI) _updateResourceUI();
+    try{
+      const isW3 = (window.meta && meta.activeWorld === 'w3');
+      const w3El = ensureW3Container();
+      const rg = document.getElementById('resourceGrid');
+      const fe = document.getElementById('fishingEmbed');
+      if(w3El) w3El.classList.toggle('hidden', !isW3);
+      if(rg) rg.classList.toggle('hidden', isW3);
+      if(fe) fe.classList.toggle('hidden', isW3);
+      // Update header labels
+      const wn = document.getElementById('worldName');
+      const lt = document.getElementById('leftTitleText');
+      if(wn) wn.textContent = isW3 ? 'World 3' : wn.textContent;
+      if(lt) lt.textContent = isW3 ? 'World 3' : lt.textContent;
+    }catch(e){}
+  };
+
+  // Also hook the W3 button directly in case the earlier appended script added it
+  function bindEnterW3(){
+    const btn = document.getElementById('enterW3');
+    if(!btn) return false;
+    if(btn.dataset._w3bound) return true;
+    btn.dataset._w3bound = '1';
+    btn.addEventListener('click', ()=>{
+      try{
+        if(!window.meta) return;
+        if(!meta.worldsUnlocked) meta.worldsUnlocked = { w1:true, w2:false };
+        if(typeof meta.worldsUnlocked.w3 === 'undefined') meta.worldsUnlocked.w3 = true;
+        meta.activeWorld = 'w3';
+        if(window.renderAll) renderAll();
+        if(window.updateAll) updateAll();
+        if(window.saveLocal) saveLocal();
+      }catch(e){}
+    });
+    return true;
+  }
+
+  // Try binding soon after load and when switching tabs
+  let tries = 0;
+  const t = setInterval(()=>{
+    bindEnterW3();
+    if(++tries > 40) clearInterval(t);
+  }, 500);
+
+  const tab = document.getElementById('tabWorlds');
+  if(tab){
+    tab.addEventListener('click', ()=>{
+      setTimeout(bindEnterW3, 0);
+      setTimeout(bindEnterW3, 200);
+      setTimeout(bindEnterW3, 600);
+    });
+  }
+})();
+</script>
+
 </body>
 </html>
