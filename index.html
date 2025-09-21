@@ -2951,5 +2951,99 @@ window.W3Module = {
 })();
 </script>
 
+
+<script type="module">
+(function(){
+  // Exported W3 state
+  window.W3 = window.W3 || Object.assign({}, {
+  hp:100, maxHp:100,
+  stamina:10, maxStamina:10,
+  staminaRegenMs:4000,
+  hpRegenRate:0,
+  weaponLevel:0,
+  precisionLevel:0,
+  trophies:0,
+  pp:0,
+  damageMult:1,
+  trophyMult:1,
+  prestigeBoostMaxStam:0,
+  prestigeBoostRegen:0,
+  prestigeBoostMaxHp:0,
+  prestigeBoostHpRegen:0,
+  runUpgrades:{},
+  currentMob:null,
+  maxFloor:1,
+  lastRegen:Date.now()
+});
+  window.W3_BASE_MOBS = {
+  1:[{id:'slime',name:'Slime',hp:30,atk:2,reward:15},{id:'goblin',name:'Goblin',hp:90,atk:4,reward:35}],
+  2:[{id:'orc',name:'Orc',hp:250,atk:10,reward:120},{id:'troll',name:'Troll',hp:400,atk:16,reward:200}],
+  3:[{id:'wyvern',name:'Wyvern',hp:1000,atk:30,reward:700},{id:'demon',name:'Demon',hp:1700,atk:50,reward:1200}],
+  4:[{id:'dragon',name:'Dragon',hp:5000,atk:120,reward:5000},{id:'leviathan',name:'Leviathan',hp:9000,atk:200,reward:11000}]
+};
+
+  function qs(id){ return document.getElementById(id); }
+
+  // Basic render: show existing counters if present; otherwise leave as-is
+  window.w3_renderAll = function(){ 
+    // future: fill dynamic stats if needed; for now, UI static render
+  };
+
+  // Attach simple attack behavior if button exists
+  function bindW3(){
+    const btn = qs('w3_attackBtn');
+    if(btn && !btn.dataset.bound){
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', function(){
+        // simple feedback
+        const t = document.createElement('div'); t.textContent = '+1 hit'; t.style.fontSize='12px'; 
+        btn.after(t); setTimeout(()=>t.remove(), 600);
+      });
+    }
+  }
+
+  // Ensure container exists in panelLeft
+  function ensureW3Embed(){
+    let host = document.getElementById('panelLeft') || document.body;
+    if(!document.getElementById('w3Embed')){
+      const wrap = document.createElement('div');
+      wrap.innerHTML = "\n<div id=\"w3Embed\" class=\"hidden\">\n  <style>#w3Embed .layout{display:grid;grid-template-columns:360px 1fr;gap:12px}\n#w3Embed .card{background:#111827;padding:12px;border-radius:8px}\n#w3Embed button{padding:6px 10px;border:none;border-radius:6px;background:#22c55e;color:#000;cursor:pointer;margin:2px}\n#w3Embed button.small{font-size:13px;padding:5px 8px}\n#w3Embed button.red{background:#ef4444;color:#fff}\n#w3Embed .muted{color:#9ca3af;font-size:13px}\n#w3Embed .progress{width:100%;height:18px;background:#222;border-radius:8px;overflow:hidden;margin-top:6px}\n#w3Embed .bar{height:100%;width:0%;background:green;transition:width 0.1s linear}</style>\n  <div class=\"card\"><h3>World 3 \u2014 Combat</h3></div>\n  <div class=\"layout\">\n    \n<h1>World 3 \u2014 Combat & Prestige (Clean Rebuild)</h1>\n<div class=\"layout\">\n<div>\n  <div class=\"card\">\n    <div>HP: <span id=\"w3_playerHp\"></span> / <span id=\"w3_playerMaxHp\"></span></div>\n    <div>Stamina: <span id=\"w3_playerStam\"></span> / <span id=\"w3_playerMaxStam\"></span></div>\n    <div>Trophies: <span id=\"w3_trophyCount\"></span></div>\n    <div>Prestige Points: <span id=\"w3_ppCount\"></span></div>\n    <hr>\n    <div id=\"w3_mobBox\">No mob selected</div>\n    <div id=\"w3_mobControls\"></div>\n    <div style=\"margin-top:8px\">\n      <button id=\"w3_attackBtn\" class=\"small red\">Attack</button>\n      <div id=\"w3_phaseInfo\" style=\"display:none;margin-top:6px\">\n        <div class=\"muted\">Time left: <span id=\"w3_miniTime\"></span>s \u2022 Clicks: <span id=\"w3_miniClicks\"></span></div>\n        <div class=\"progress\"><div id=\"w3_progressBar\" class=\"bar\"></div></div>\n      </div>\n    </div>\n  </div>\n\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Run Upgrades</h3>\n    <div id=\"w3_runUpgrades\"></div>\n  </div>\n\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Prestige</h3>\n    <div id=\"w3_prestigeArea\"></div>\n  </div>\n</div>\n\n<div>\n  <div class=\"card\">\n    <h3>Floors & Mobs</h3>\n    <div id=\"w3_floorMobs\"></div>\n    <div id=\"w3_floorShop\"></div>\n  </div>\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Prestige Shop</h3>\n    <div id=\"w3_prestigeShop\"></div>\n  </div>\n</div>\n</div>\n\n\n\n  </div>\n</div>\n";
+      host.appendChild(wrap.firstElementChild);
+    }
+    bindW3();
+  }
+
+  // Expose a helper to enter W3
+  window.enterWorld3 = function(){
+    ensureW3Embed();
+    // Hide W1/W2
+    const rg = document.getElementById('resourceGrid'); if(rg) rg.classList.add('hidden');
+    const fe = document.getElementById('fishingEmbed'); if(fe) fe.classList.add('hidden');
+    // Show W3
+    const w3 = document.getElementById('w3Embed'); if(w3) w3.classList.remove('hidden');
+    // Update labels
+    const wn = document.getElementById('worldName'); if(wn) wn.textContent = 'World 3';
+    const lt = document.getElementById('leftTitleText'); if(lt) lt.textContent = 'World 3';
+    window.w3_renderAll();
+  };
+
+  // Hook our existing button if present
+  function wireEnterButton(){
+    const btn = document.getElementById('enterW3');
+    if(btn && !btn.dataset.enterBound){
+      btn.dataset.enterBound='1';
+      btn.addEventListener('click', ()=> window.enterWorld3());
+    }
+  }
+
+  // Try right away and on Worlds tab clicks
+  wireEnterButton();
+  setTimeout(wireEnterButton, 300);
+  const tab = document.getElementById('tabWorlds');
+  if(tab) tab.addEventListener('click', ()=> setTimeout(wireEnterButton, 0));
+
+})();
+</script>
+
 </body>
 </html>
