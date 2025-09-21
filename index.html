@@ -18,7 +18,6 @@ crossorigin="anonymous"></script>
 body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);margin:0;color:#0f172a;transition:background 0.3s ease}
 body.theme-w1{--bg:#efe3d6;--header:#5c4033}
 body.theme-w2{--bg:#e6f4ff;--header:#0e4f8a}
-body.theme-w3{--bg:#0f1724;--header:#0a1320}
 header{display:flex;align-items:center;padding:12px 16px;background:var(--header);color:#fff;position:sticky;top:0;z-index:5}
 header h1{margin:0 12px 0 0;font-size:18px}
 main{display:flex;gap:12px;padding:18px;flex-wrap:wrap}
@@ -170,211 +169,7 @@ table.lb th{font-weight:700}
         <hr class="sep" />
         <div class="small-muted">Catch Bag (sells for Coins)</div>
         <div id="catchBag" class="grid3" style="margin-top:6px"></div>
-      
-      <!-- W3: combat embed -->
-      <div id="w3Embed" class="hidden">
-        <h1>World 3 — Combat &amp; Prestige (Clean Rebuild)</h1>
-<div class="layout">
-<div>
-<div class="card">
-<div>HP: <span id="w3_playerHp"></span> / <span id="w3_playerMaxHp"></span></div>
-<div>Stamina: <span id="w3_playerStam"></span> / <span id="w3_playerMaxStam"></span></div>
-<div>Trophies: <span id="w3_trophyCount"></span></div>
-<div>Prestige Points: <span id="w3_ppCount"></span></div>
-<hr/>
-<div id="w3_mobBox">No mob selected</div>
-<div id="w3_mobControls"></div>
-<div style="margin-top:8px">
-<button class="small red" id="w3_attackBtn">Attack</button>
-<div id="w3_phaseInfo" style="display:none;margin-top:6px">
-<div class="muted">Time left: <span id="w3_miniTime"></span>s • Clicks: <span id="w3_miniClicks"></span></div>
-<div class="progress"><div class="bar" id="w3_progressBar"></div></div>
-</div>
-</div>
-</div>
-<div class="card" style="margin-top:12px">
-<h3>Run Upgrades</h3>
-<div id="w3_runUpgrades"></div>
-</div>
-<div class="card" style="margin-top:12px">
-<h3>Prestige</h3>
-<div id="w3_prestigeArea"></div>
-</div>
-</div>
-<div>
-<div class="card">
-<h3>Floors &amp; Mobs</h3>
-<div id="w3_floorMobs"></div>
-<div id="w3_floorShop"></div>
-</div>
-<div class="card" style="margin-top:12px">
-<h3>Prestige Shop</h3>
-<div id="w3_prestigeShop"></div>
-</div>
-</div>
-</div>
-<script>
-const DEFAULT = {
-  hp:100, maxHp:100,
-  stamina:10, maxStamina:10,
-  staminaRegenMs:4000,
-  hpRegenRate:0,
-  weaponLevel:0,
-  precisionLevel:0,
-  trophies:0,
-  pp:0,
-  damageMult:1,
-  trophyMult:1,
-  prestigeBoostMaxStam:0,
-  prestigeBoostRegen:0,
-  prestigeBoostMaxHp:0,
-  prestigeBoostHpRegen:0,
-  runUpgrades:{},
-  currentMob:null,
-  maxFloor:1,
-  lastRegen:Date.now()
-};
-
-let state = Object.assign({}, DEFAULT);
-
-const BASE_MOBS = {
-  1:[{id:'slime',name:'Slime',hp:30,atk:2,reward:15},{id:'goblin',name:'Goblin',hp:90,atk:4,reward:35}],
-  2:[{id:'orc',name:'Orc',hp:250,atk:10,reward:120},{id:'troll',name:'Troll',hp:400,atk:16,reward:200}],
-  3:[{id:'wyvern',name:'Wyvern',hp:1000,atk:30,reward:700},{id:'demon',name:'Demon',hp:1700,atk:50,reward:1200}],
-  4:[{id:'dragon',name:'Dragon',hp:5000,atk:120,reward:5000},{id:'leviathan',name:'Leviathan',hp:9000,atk:200,reward:11000}]
-};
-
-// ---------- Rendering ----------
-function renderAll(){
-  document.getElementById('playerHp').textContent = state.hp;
-  document.getElementById('playerMaxHp').textContent = state.maxHp + (state.prestigeBoostMaxHp||0);
-  document.getElementById('playerStam').textContent = state.stamina;
-  document.getElementById('playerMaxStam').textContent = state.maxStamina + (state.prestigeBoostMaxStam||0);
-  document.getElementById('trophyCount').textContent = state.trophies;
-  document.getElementById('ppCount').textContent = state.pp;
-
-  renderMobBox();
-  renderRunUpgrades();
-  renderPrestigeArea();
-  renderFloors();
-  renderPrestigeShop();
-}
-
-function renderMobBox(){
-  const box=document.getElementById('mobBox');
-  if(state.currentMob){
-    box.innerHTML = state.currentMob.name+" HP:"+state.currentMob.hp;
-    document.getElementById('mobControls').innerHTML='<button onclick="flee()">Flee</button>';
-  } else {
-    let html='';
-    for(let f=1;f<=state.maxFloor;f++){
-      html += '<div>Floor '+f+': ';
-      (BASE_MOBS[f]||[]).forEach(m=>{
-        html += '<button onclick="enterMob('+f+',\''+m.id+'\')">'+m.name+'</button>';
-      });
-      html+='</div>';
-    }
-    box.innerHTML=html;
-    document.getElementById('mobControls').innerHTML='';
-  }
-}
-
-function renderRunUpgrades(){
-  const box=document.getElementById('runUpgrades'); box.innerHTML='';
-  function addBtn(name,cost,level,fn){
-    let b=document.createElement('button');
-    b.textContent=name+" Lv."+level+" (Cost "+cost+")";
-    b.disabled=state.trophies<cost;
-    b.onclick=()=>{ if(state.trophies<cost) return; state.trophies-=cost; fn(); renderAll(); };
-    box.appendChild(b);
-  }
-  addBtn("Sharper Sword",100*Math.pow(2,state.weaponLevel||0),state.weaponLevel||0,()=>{state.weaponLevel++;});
-  addBtn("Precision",100*Math.pow(2,state.precisionLevel||0),state.precisionLevel||0,()=>{state.precisionLevel++;});
-  addBtn("Max Stamina",150*Math.pow(2,state.runUpgrades.maxStam||0),state.runUpgrades.maxStam||0,()=>{state.runUpgrades.maxStam=(state.runUpgrades.maxStam||0)+1;state.maxStamina+=5;state.stamina+=5;});
-  addBtn("Stamina Regen",200*Math.pow(2,state.runUpgrades.regen||0),state.runUpgrades.regen||0,()=>{state.runUpgrades.regen=(state.runUpgrades.regen||0)+1;state.staminaRegenMs=Math.max(500,Math.floor(state.staminaRegenMs*0.85));});
-  addBtn("Max HP",200*Math.pow(2,state.runUpgrades.maxHp||0),state.runUpgrades.maxHp||0,()=>{state.runUpgrades.maxHp=(state.runUpgrades.maxHp||0)+1;state.maxHp+=20;state.hp+=20;});
-  addBtn("HP Regen",250*Math.pow(2,state.runUpgrades.hpRegen||0),state.runUpgrades.hpRegen||0,()=>{state.runUpgrades.hpRegen=(state.runUpgrades.hpRegen||0)+1;state.hpRegenRate=(state.hpRegenRate||0)+2;});
-}
-
-function renderPrestigeArea(){
-  const box=document.getElementById('prestigeArea'); box.innerHTML='';
-  const b=document.createElement('button');
-  b.textContent="Prestige (5000 trophies = 1 PP)";
-  b.disabled=state.trophies<5000;
-  b.onclick=()=>{let gain=Math.floor(state.trophies/5000);state.pp+=gain;state.trophies=0;state.weaponLevel=0;state.precisionLevel=0;state.runUpgrades={};state.hp=state.maxHp;state.stamina=state.maxStamina;state.currentMob=null;alert("Prestiged +"+gain+" PP");renderAll();};
-  box.appendChild(b);
-}
-
-function renderFloors(){
-  const box=document.getElementById('floorMobs'); box.innerHTML='';
-  for(let f=1;f<=state.maxFloor;f++){
-    box.innerHTML+='<div>Floor '+f+' has '+(BASE_MOBS[f]||[]).map(m=>m.name).join(', ')+'</div>';
-  }
-  const shop=document.getElementById('floorShop'); shop.innerHTML='';
-  let next=state.maxFloor+1; let cost=Math.pow(5,next-1);
-  let b=document.createElement('button');
-  b.textContent="Unlock Floor "+next+" (Cost "+cost+" PP)";
-  b.disabled=state.pp<cost;
-  b.onclick=()=>{if(state.pp<cost)return;state.pp-=cost;state.maxFloor++;renderAll();};
-  shop.appendChild(b);
-}
-
-function renderPrestigeShop(){
-  const box=document.getElementById('prestigeShop'); box.innerHTML='';
-  function addBtn(name,cost,desc,fn){
-    let b=document.createElement('button'); b.textContent=name+" (Cost "+cost+") "+desc; b.disabled=state.pp<cost; b.onclick=()=>{if(state.pp<cost)return;state.pp-=cost;fn();renderAll();}; box.appendChild(b);
-  }
-  addBtn("2x Damage",2,"x"+state.damageMult,()=>{state.damageMult*=2;});
-  addBtn("2x Trophies",2,"x"+state.trophyMult,()=>{state.trophyMult*=2;});
-  addBtn("+5 Max Stamina",3,"Owned "+state.prestigeBoostMaxStam,()=>{state.prestigeBoostMaxStam+=5;state.maxStamina+=5;state.stamina+=5;});
-  addBtn("+10% Stamina Regen",3,"Owned "+Math.round(state.prestigeBoostRegen*100)+"%",()=>{state.prestigeBoostRegen+=0.10;state.staminaRegenMs=Math.max(300,Math.floor(state.staminaRegenMs*0.9));});
-  addBtn("+20 Max HP",3,"Owned "+state.prestigeBoostMaxHp,()=>{state.prestigeBoostMaxHp+=20;state.maxHp+=20;state.hp+=20;});
-  addBtn("+2 HP Regen/5s",3,"Owned "+state.prestigeBoostHpRegen,()=>{state.prestigeBoostHpRegen+=2;});
-}
-
-// ---------- Combat ----------
-let miniActive=false, miniClicks=0, miniTimer=null;
-function enterMob(f,id){ state.currentMob=Object.assign({},(BASE_MOBS[f]||[]).find(x=>x.id==id)); renderAll(); }
-function flee(){ state.currentMob=null; renderAll(); }
-function startAttackPhase(){
-  if(!state.currentMob) return alert("Pick mob"); if(state.stamina<=0) return alert("No stamina");
-  state.stamina--; miniActive=true; miniClicks=0; let time=3;
-  document.getElementById('phaseInfo').style.display='block';
-  document.getElementById('miniTime').textContent=time; document.getElementById('miniClicks').textContent=0;
-  const btn=document.getElementById('attackBtn'); btn.textContent="Hit!"; btn.onclick=registerHit;
-  miniTimer=setInterval(()=>{time--; document.getElementById('miniTime').textContent=time; if(time<=0) endAttackPhase();},1000);
-}
-function registerHit(){ if(!miniActive)return; miniClicks++; document.getElementById('miniClicks').textContent=miniClicks; document.getElementById('progressBar').style.width=Math.min(100,(miniClicks/20)*100)+'%'; }
-function endAttackPhase(){
-  clearInterval(miniTimer); miniTimer=null; miniActive=false;
-  document.getElementById('phaseInfo').style.display='none'; document.getElementById('progressBar').style.width='0%';
-  const btn=document.getElementById('attackBtn'); btn.textContent="Attack"; btn.onclick=startAttackPhase;
-  if(!state.currentMob) return;
-  let base=5+(state.weaponLevel*3); let min=10+(state.precisionLevel*5); let max=min+10; let scaled=min+(miniClicks/20)*(max-min); if(scaled>max)scaled=max;
-  let dmg=(base+Math.floor(scaled))*(state.damageMult||1);
-  state.currentMob.hp-=Math.floor(dmg);
-  if(state.currentMob.hp<=0){ state.trophies+=Math.floor(state.currentMob.reward*(state.trophyMult||1)); state.currentMob=null; } else { state.hp-=state.currentMob.atk; if(state.hp<=0){ state.hp=state.maxHp; state.trophies=Math.max(0,Math.floor(state.trophies*0.9)); } }
-  renderAll();
-}
-
-// ---------- Regen ----------
-setInterval(()=>{
-  const now=Date.now();
-  // stamina regen
-  const regenMs=Math.max(300,Math.floor(state.staminaRegenMs*(1-(state.prestigeBoostRegen||0))));
-  if(now-(state.lastRegen||0)>=regenMs){ state.stamina=Math.min(state.maxStamina+(state.prestigeBoostMaxStam||0),state.stamina+1); state.lastRegen=now; }
-  // HP regen every 5s
-  if(((state.hpRegenRate||0)+(state.prestigeBoostHpRegen||0))>0 && now%5000<1000){
-    state.hp=Math.min(state.maxHp+(state.prestigeBoostMaxHp||0),state.hp+(state.hpRegenRate||0)+(state.prestigeBoostHpRegen||0));
-  }
-  renderAll();
-},1000);
-
-document.getElementById('attackBtn').onclick=startAttackPhase;
-renderAll();
-</script>
       </div>
-</div>
 
       <div class="row hidden" id="frenzyRow" style="margin-top:8px">
         <button id="frenzyBtn" class="small">Activate Frenzy</button>
@@ -503,6 +298,1131 @@ renderAll();
 </main>
 
 <script type="module">
+// ---- Firebase (Auto, hard-coded) ----
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getFirestore, collection, setDoc, updateDoc, doc, query, where, orderBy, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAqzfPRI279ayf4bEUiVkdyzg8mbxPBymM",
+  authDomain: "resource-clicker-ff934.firebaseapp.com",
+  projectId: "resource-clicker-ff934",
+  storageBucket: "resource-clicker-ff934.appspot.com",
+  messagingSenderId: "414877764604",
+  appId: "1:414877764604:web:a07f21b810ca4e4698c079",
+  measurementId: "G-JNLRBTSQZG"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const LB_COLLECTION = "leaderboard";
+
+
+function lbCollectionName(){ try { return (meta && meta.activeWorld==='w2') ? (LB_COLLECTION + '_w2') : (LB_COLLECTION + '_w1'); } catch(e) { return LB_COLLECTION + '_w1'; } }
+function normalizeName(name){ return (name||"").trim().toLowerCase(); }
+
+// Upsert: one row per name (case-insensitive). Only updates if new score is higher.
+async function submitOnlineUpsert(name, score){
+  const nameKey = normalizeName(name);
+  const coll = collection(db, lbCollectionName());
+  const q = query(coll, where("nameKey","==",nameKey), limit(1));
+  const snap = await getDocs(q);
+
+  if(snap.empty){
+    const ref = doc(coll, nameKey || 'anonymous');
+    await setDoc(ref, { name: name || "Anonymous", nameKey, score: Number(score)||0, ts: serverTimestamp() });
+    return {action:'insert'};
+  } else {
+    const docRef = snap.docs[0].ref;
+    const data = snap.docs[0].data() || {};
+    const current = Number(data.score)||0;
+    if(Number(score) > current){
+      await updateDoc(docRef, { name: name || "Anonymous", score: Number(score)||0, ts: serverTimestamp() });
+      return {action:'update'};
+    } else {
+      if((name||"") && data.name !== name){
+        try{ await updateDoc(docRef, { name }); }catch(e){} // keep casing
+      }
+      return {action:'noop'};
+    }
+  }
+}
+
+async function fetchTop(){
+  const q = query(collection(db, lbCollectionName()), orderBy("score", "desc"), limit(50));
+  const snap = await getDocs(q);
+  const rows = [];
+  snap.forEach(doc=>{
+    const d = doc.data();
+    rows.push({name:d.name||"Anonymous", score:d.score||0, ts:(d.ts && d.ts.toDate ? d.ts.toDate() : new Date())});
+  });
+  return rows.sort((a,b)=> b.score - a.score);
+}
+
+// ---- Game Data Structures (Worlds + Fishing + 10× Scoring + Coins in W2) ----
+const RES_LIST=['wood','stone','iron','gold','diamond','dirt'];
+const VALUES_W1 = { wood:1, stone:5, iron:12, gold:20, diamond:30, dirt:3 };
+const VALUES_W2 = { wood:10, stone:50, iron:120, gold:200, diamond:300, dirt:30 }; // 10× worth in World 2
+function cap(s){return s[0].toUpperCase()+s.slice(1);}
+function fmt(n){return Number(n).toLocaleString();}
+
+function newFishingState(){
+  return {
+    stamina: 10,
+    maxStamina: 10,
+    regenMs: 3500,
+    rodLevel: 0,
+    baitLevel: 0,
+    tankLevel: 0,
+    regenLevel: 0,
+    autoLevel: 0,
+    autoOn: true,
+    lastAuto: Date.now(),
+    inventory: {},
+    lastRegen: Date.now()
+  };
+}
+function newWorldState(){
+  return {
+    resources:{wood:0,stone:0,iron:0,gold:0,diamond:0,dirt:0},
+    coins:0, // universal currency for W2
+    click:{wood:1,stone:1,iron:1,gold:1,diamond:1,dirt:1},
+    auto:{wood:0,stone:0,iron:0,gold:0,diamond:0,dirt:0},
+    unlocked:{wood:true,stone:false,iron:false,gold:false,diamond:false,dirt:false},
+    gardens:0,
+    shopLevels:{},
+    uniqueLevels:{
+      wood_click_boost:0,
+      stone_wood_click:0,
+      iron_auto_passive:0,
+      gold_frenzy:0,
+      diamond_pp_bonus:0
+    },
+    frenzyUntil:0,
+    frenzyCooldownUntil:0,
+    fishing: newFishingState()
+  };
+}
+
+// Global meta (shared across worlds)
+let meta={
+  prestigePoints:0,
+  lifetimeScoreW1:0,
+  lifetimeScoreW2:0,
+  lifetimeScore:0, // legacy (migrated)
+  prestigeUpgrades:{
+    global:{ level:0 },
+    wood:{ level:0 }, stone:{ level:0 }, iron:{ level:0 },
+    gold:{ level:0 }, diamond:{ level:0 }, dirt:{ level:0 }
+  },
+
+  // World 2 prestige
+  w2PrestigePoints: 0,
+  w2PrestigeUpgrades: {
+    autoDouble:    { level: 0 }, // AutoCaster x2
+    twoFishChance: { level: 0 }, // +25% extra fish chance
+    coinDouble:    { level: 0 }  // Coins x2
+  },
+
+  worldsUnlocked: { w1:true, w2:false },
+  activeWorld: 'w1'
+};
+
+// Per-world saves
+let worlds = {
+  w1: newWorldState(),
+  w2: newWorldState()
+};
+
+function currentWorld(){ return worlds[meta.activeWorld]; }
+function valuesForActiveWorld(){ return meta.activeWorld==='w2' ? VALUES_W2 : VALUES_W1; }
+function multFor(res){
+  const g = meta.prestigeUpgrades.global.level||0;
+  const r = (meta.prestigeUpgrades[res]?.level)||0;
+  let m = Math.pow(2, g + r);
+  if(Date.now() < currentWorld().frenzyUntil) m *= 2;
+  return m;
+}
+
+// Floaty +N
+function floatFrom(btn, text){
+  const parent = btn.closest('.resource') || btn.closest('.card') || document.body;
+  const el = document.createElement('div');
+  el.className='float';
+  el.textContent = text;
+  el.style.left = (btn.offsetLeft + (btn.offsetWidth||80)/2 - 10) + 'px';
+  el.style.top  = (btn.offsetTop - 6) + 'px';
+  parent.appendChild(el);
+  let y=0, o=1;
+  const it = setInterval(()=>{
+    y -= 1.5; o -= 0.04;
+    el.style.transform = 'translateY('+y+'px)';
+    el.style.opacity = o;
+    if(o<=0){ clearInterval(it); el.remove(); }
+  }, 16);
+}
+
+// Bind click buttons
+function bindClickButtons(){
+  RES_LIST.forEach(r=>{
+    const btn = document.getElementById('btn'+cap(r));
+    if(!btn) return;
+    btn.addEventListener('click', ()=>handleClick(r, btn));
+    btn.addEventListener('touchstart', (e)=>{ e.preventDefault(); handleClick(r, btn); }, {passive:false});
+  });
+}
+function handleClick(r, btn){
+  const S = currentWorld();
+  if(!S.unlocked[r]) return;
+  let gain = S.click[r];
+  if(r==='wood'){
+    gain += S.uniqueLevels.wood_click_boost + S.uniqueLevels.stone_wood_click;
+  }
+  gain *= multFor(r);
+  S.resources[r]+=gain;
+  floatFrom(btn, '+'+gain);
+  updateAll();
+}
+
+// Auto tick (includes Iron passive) + Fishing stamina regen + Auto fisher
+setInterval(()=>{
+  const S = currentWorld();
+  RES_LIST.forEach(r=>{
+    const passive = S.uniqueLevels.iron_auto_passive||0;
+    S.resources[r]+= (S.auto[r] + passive) * multFor(r);
+  });
+  // Stamina regen (world-specific)
+  const F=S.fishing;
+  const now=Date.now();
+  const regenEveryMs = F.regenMs || 3500;
+  if(!F.lastAuto) F.lastAuto = now;
+  if(now - F.lastRegen >= regenEveryMs){
+    const ticks = Math.floor((now - F.lastRegen)/regenEveryMs);
+    F.stamina = Math.min(F.maxStamina, F.stamina + ticks);
+    F.lastRegen = now;
+  }
+  // Auto fisher logic (W2 only)
+  if(meta.activeWorld==='w2'){
+    const interval = autoIntervalForLevel(F.autoLevel||0);
+    if(now - (F.lastAuto||0) >= interval){
+      F.lastAuto = now;
+      fishingCast(false, {ignoreStamina:true, silent:true});
+    }
+  }
+  updateAll();
+}, 1000);
+
+// Save/Load (global)
+function saveLocal(){ localStorage.setItem('rc_worlds_fishing_left_no_tab_save', JSON.stringify({meta,worlds})); }
+function loadLocal(){
+  try{
+    const s = JSON.parse(localStorage.getItem('rc_worlds_fishing_left_no_tab_save')||'{}');
+    if(s && s.meta && s.worlds){
+      meta = Object.assign(meta, s.meta);
+      worlds = Object.assign(worlds, s.worlds);
+      if((meta.lifetimeScore||0) > 0 && (meta.lifetimeScoreW1||0)===0 && (meta.lifetimeScoreW2||0)===0){
+        meta.lifetimeScoreW1 = meta.lifetimeScore;
+        meta.lifetimeScore = 0;
+      }
+      if(!meta.prestigeUpgrades) meta.prestigeUpgrades={global:{level:0}, wood:{level:0}, stone:{level:0}, iron:{level:0}, gold:{level:0}, diamond:{level:0}, dirt:{level:0}};
+      if(!meta.worldsUnlocked) meta.worldsUnlocked={w1:true,w2:false};
+      if(!meta.activeWorld) meta.activeWorld='w1';
+      if(!meta.w2PrestigeUpgrades) meta.w2PrestigeUpgrades={autoDouble:{level:0},twoFishChance:{level:0},coinDouble:{level:0}};
+      ['w1','w2'].forEach(id=>{
+        if(!worlds[id]) worlds[id]=newWorldState();
+        const S=worlds[id];
+        if(!S.fishing){ S.fishing=newFishingState(); }
+        if(typeof S.coins!=='number') S.coins=0;
+        if(!S.fishing.inventory) S.fishing.inventory={};
+        if(!S.fishing.regenMs) S.fishing.regenMs=3500;
+        if(!('tankLevel' in S.fishing)) S.fishing.tankLevel=0;
+        if(!('regenLevel' in S.fishing)) S.fishing.regenLevel=0;
+        // Recalc linear regen (0.2s per level, min 0.33s)
+        const rl = S.fishing.regenLevel || 0;
+        S.fishing.regenMs = Math.max(330, 3500 - 200 * rl);
+      });
+    }
+  }catch(e){}
+}
+document.getElementById('saveBtn').addEventListener('click', ()=>{ saveLocal(); alert('Saved locally'); });
+document.getElementById('loadBtn').addEventListener('click', ()=>{ loadLocal(); renderAll(); updateAll(); alert('Loaded from local'); });
+
+// Text Import/Export (global + all worlds)
+const box = document.getElementById('saveBox');
+document.getElementById('exportTextBtn').addEventListener('click', ()=>{
+  try{ box.value = JSON.stringify({meta,worlds}); }catch(e){ box.value='// Error creating save text'; }
+});
+document.getElementById('importTextBtn').addEventListener('click', ()=>{
+  try{
+    const obj = JSON.parse(box.value.trim());
+    if(!obj || !obj.meta || !obj.worlds) throw new Error();
+    meta = Object.assign(meta, obj.meta);
+    worlds = Object.assign(worlds, obj.worlds);
+    renderAll(); updateAll(); saveLocal();
+    alert('Imported from text');
+  }catch(e){ alert('Invalid save text'); }
+});
+document.getElementById('copyTextBtn').addEventListener('click', async()=>{
+  try{ await navigator.clipboard.writeText(box.value); alert('Copied!'); }
+  catch(e){ box.select(); document.execCommand('copy'); alert('Copied (fallback)'); }
+});
+document.getElementById('clearTextBtn').addEventListener('click', ()=> box.value='');
+
+// Score helpers
+function weightedOfValues(vals, obj){ let t=0; for(const k in obj){ t += (vals[k]||0) * (obj[k]||0); } return t; }
+function weightedCurrent(){ if(meta.worldsUnlocked.w2){   return meta.activeWorld==='w2' ? (currentWorld().coins||0) : 0; } else {   return weightedOfValues(VALUES_W1, currentWorld().resources); }}
+function totalScore(){ if(meta.worldsUnlocked.w2){   return (meta.lifetimeScoreW2||0) + (meta.activeWorld==='w2' ? (worlds.w2.coins||0) : 0); } else {   return (meta.lifetimeScoreW1||0) + weightedOfValues(VALUES_W1, worlds.w1.resources); }}
+
+// Banking spend into lifetime per-world (coins don't affect score directly)
+function weightedOfCostForActive(cost){
+  const vals = meta.activeWorld==='w2' ? VALUES_W2 : VALUES_W1;
+  return weightedOfValues(vals, cost);
+}
+function bankToLifetime(amount){
+  if(meta.activeWorld==='w2') meta.lifetimeScoreW2 += amount;
+  else meta.lifetimeScoreW1 += amount;
+}
+function payCostResource(c){
+  bankToLifetime( weightedOfCostForActive(c) );
+  const S=currentWorld();
+  for(const k in c){ S.resources[k]-=c[k]; }
+}
+function payCostCoins(n){
+  const S=currentWorld();
+  if(S.coins < n) return false;
+  S.coins -= n;
+  return true;
+}
+
+// UI update incl. theme + coins + swapping left panel
+function updateResourceUI(){
+// --- W2 tab visibility guard (buttons + redirect) ---
+(function(){
+  const inW2 = (meta.activeWorld==='w2');
+  const tabIds = ['tabShop','tabUnlocks','tabUnique','tabGarden'];
+  tabIds.forEach(id=>{ const btn=document.getElementById(id); if(btn){ btn.classList.toggle('hidden', inW2); }});
+  if(inW2){
+    const activeBad = tabIds.some(id=>{ const b=document.getElementById(id); return b && b.classList.contains('active'); });
+    if(activeBad){ try{ showPanel('prestige'); }catch(e){} }
+  }
+})();
+
+// Hide W1-only panels when in World 2, but don't override tab visibility in W1
+['panelShop','panelUnlocks','panelUnique','panelGarden'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(!el) return;
+  if (meta.activeWorld === 'w2') {
+    el.classList.add('hidden');      // .hidden { display:none !important }
+  } else {
+    el.classList.remove('hidden');   // Let showPanel() manage display in W1
+  }
+});
+
+  const S=currentWorld();
+  const w2Unlocked = !!meta.worldsUnlocked.w2;
+  document.body.classList.toggle('theme-w1', meta.activeWorld==='w1');
+  document.body.classList.toggle('theme-w2', meta.activeWorld==='w2');
+  const isW2 = meta.activeWorld==='w2';
+
+  const wn = document.getElementById('worldName'); if(wn) wn.textContent = isW2 ? 'World 2' : 'World 1';
+  const lt = document.getElementById('leftTitleText'); if(lt) lt.textContent = isW2 ? 'Fishing' : 'Click Panel';
+  document.getElementById('leftSub').textContent = isW2 ? 'Cast to earn Coins. Use coins to buy upgrades and unlocks in World 2.' : 'Click to gather. Use Unlocks to enable other resources.';
+  document.getElementById('resourceGrid').classList.toggle('hidden', isW2);
+  document.getElementById('fishingEmbed').classList.toggle('hidden', !isW2);
+
+  RES_LIST.forEach(r=>{
+    const countEl = document.getElementById(r+'Count');
+    const perEl = document.getElementById(r+'Per');
+    const btn = document.getElementById('btn'+cap(r));
+    if(countEl) countEl.textContent = fmt(S.resources[r]);
+    if(perEl){
+      let per = S.click[r];
+      if(r==='wood') per += S.uniqueLevels.wood_click_boost + S.uniqueLevels.stone_wood_click;
+      perEl.textContent = fmt(per*multFor(r));
+    }
+    if(btn) btn.disabled = !S.unlocked[r];
+  });
+
+  document.getElementById('ppCount').textContent = fmt(meta.prestigePoints);
+  document.getElementById('totalScore').textContent = fmt(totalScore());
+  document.getElementById('currentWeighted').textContent = fmt(weightedCurrent());
+  document.getElementById('w1Ignored').style.display = w2Unlocked ? 'block' : 'none';
+  const lifeElem = document.getElementById('lifetimeScore');
+  if(w2Unlocked){
+    lifeElem.textContent = fmt(meta.lifetimeScoreW2||0);
+    document.getElementById('scoreRuleNote').textContent = 'Scoring mode: World 2 only (10× resource values). World 1 is ignored.';
+  } else {
+    lifeElem.textContent = fmt(meta.lifetimeScoreW1||0);
+    document.getElementById('scoreRuleNote').textContent = 'Scoring mode: World 1 (before unlocking World 2).';
+  }
+
+  // Frenzy UI
+  const goldLvl = S.uniqueLevels.gold_frenzy||0;
+  const row = document.getElementById('frenzyRow');
+  row.classList.toggle('hidden', goldLvl<=0);
+  const info = document.getElementById('frenzyInfo');
+  if(goldLvl>0){
+    const cdBase = 180;
+    const cd = Math.max(30, cdBase - 15*(goldLvl-1));
+    const now = Date.now();
+    const readyIn = Math.max(0, Math.ceil((S.frenzyCooldownUntil - now)/1000));
+    const activeFor = Math.max(0, Math.ceil((S.frenzyUntil - now)/1000));
+    info.textContent = activeFor>0 ? `Frenzy active: ${activeFor}s left` : (readyIn>0 ? `Cooldown: ${readyIn}s` : 'Ready! x2 for 20s');
+    const btn = document.getElementById('frenzyBtn');
+    btn.disabled = readyIn>0 || activeFor>0;
+  }
+
+  // Fishing embed stats
+  if(isW2){
+    const F=S.fishing;
+    document.getElementById('coinCount').textContent = fmt(S.coins||0);
+    document.getElementById('stamNow').textContent = fmt(F.stamina);
+    document.getElementById('stamMax').textContent = fmt(F.maxStamina);
+    document.getElementById('rodBaitLine').textContent = `Rod Lv.${F.rodLevel} • Bait Lv.${F.baitLevel} • Tank Lv.${F.tankLevel} • Regen Lv.${F.regenLevel} (${(F.regenMs/1000).toFixed(2)}s/stam)`;
+    const castEl = document.getElementById('castBtn');
+    if(castEl){ castEl.disabled = F.stamina<=0; }
+
+    // costs (W2 discounted)
+    document.getElementById('rodCost').textContent = 'Cost: ' + (rodUpgradeCost(F.rodLevel||0)).toLocaleString() + ' Coins';
+    document.getElementById('baitCost').textContent = 'Cost: ' + (applyW2DiscountCoins(Math.floor(1000*Math.pow(1.8,(F.baitLevel||0)))).toLocaleString()) + ' Coins';
+    document.getElementById('tankCost').textContent = 'Cost: ' + (applyW2DiscountCoins(Math.floor(700*Math.pow(1.9,(F.tankLevel||0)))).toLocaleString()) + ' Coins';
+    document.getElementById('regenCost').textContent = 'Cost: ' + (applyW2DiscountCoins(Math.floor(900*Math.pow(2.0,(F.regenLevel||0)))).toLocaleString()) + ' Coins';
+  }
+
+  // Notes
+  document.getElementById('shopNote').textContent = isW2 ? 'World 2 uses universal Coins for all purchases in this tab.' : 'World 1 uses resource-specific costs.';
+  document.getElementById('unlockNote').textContent = isW2 ? 'Unlock costs use Coins in World 2.' : 'Unlock costs use resources in World 1.';
+}
+
+// Tabs
+const panels={ shop:'panelShop', unlocks:'panelUnlocks', unique:'panelUnique', garden:'panelGarden', prestige:'panelPrestige', worlds:'panelWorlds', leaderboard:'panelLeaderboard', achievements:'panelAchievements', quests:'panelQuests' };
+Object.keys(panels).forEach(k=>{
+  document.getElementById('tab'+cap(k)).addEventListener('click', ()=>showPanel(k));
+});
+function showPanel(name){
+  Object.keys(panels).forEach(k=>{
+    document.getElementById(panels[k]).style.display = (k===name)?'block':'none';
+    document.getElementById('tab'+cap(k)).classList.toggle('active', k===name);
+  });
+}
+
+// --- Costs, discounts ---
+// --- World 2 cost discount (make everything significantly cheaper in W2) ---
+const W2_COIN_DISCOUNT = 0.15; // 85% cheaper than original
+function applyW2DiscountCoins(n){ return Math.max(1, Math.floor((Number(n)||0) * W2_COIN_DISCOUNT)); }
+
+const CONFIG={ 
+  clickCostMult:1.9,
+  autoCostMult:2.2,
+  autoPerPurchase:2, 
+  gardenDiscountPer:0.1, 
+  baseGardenMaxDiscount:0.3
+};
+function gardenMaxCap(){ return CONFIG.baseGardenMaxDiscount; }
+
+let shopDefs=[];
+RES_LIST.forEach(r=>{
+  shopDefs.push({id:r+'_click', res:r, type:'click', title:cap(r)+' +1 per click', desc:'Increase '+r+' per click by 1.', baseCost:{[r]:25}});
+  shopDefs.push({id:r+'_auto',  res:r, type:'auto',  title:cap(r)+' +2/sec',       desc:'Increase automatic '+r+' by 2/sec.', baseCost:{[r]:60}});
+});
+function getLevel(id){ return (currentWorld().shopLevels[id]||0); }
+function setLevel(id, lvl){ currentWorld().shopLevels[id]=lvl; }
+function applyDiscount(cost){
+  const d = Math.min(currentWorld().gardens*CONFIG.gardenDiscountPer, gardenMaxCap());
+  const out={}; for(const k in cost) out[k]=Math.max(1, Math.floor(cost[k]*(1-d))); return out;
+}
+function scaledCostResources(def){
+  const level = getLevel(def.id);
+  const base = applyDiscount(def.baseCost);
+  const mult = (def.type==='click')? CONFIG.clickCostMult : CONFIG.autoCostMult;
+  const out={};
+  for(const k in base) out[k] = Math.floor(base[k]*Math.pow(mult, level));
+  return out;
+}
+function costForWorld(def){
+  if(meta.activeWorld!=='w2') return scaledCostResources(def);
+  const resCost = scaledCostResources(def);
+  let coinCost = weightedOfValues(VALUES_W2, resCost);
+  coinCost = applyW2DiscountCoins(coinCost);
+  return {coins: coinCost};
+}
+function canAffordCost(cost){
+  const S=currentWorld();
+  if('coins' in cost){ return (S.coins||0) >= cost.coins; }
+  for(const k in cost){ if(S.resources[k] < cost[k]) return false; }
+  return true;
+}
+function payCost(cost){
+  if('coins' in cost) return payCostCoins(cost.coins);
+  else return payCostResource(cost);
+}
+
+function renderShop(){
+  const box=document.getElementById('shopList'); box.innerHTML='';
+  shopDefs.forEach(def=>{
+    const S=currentWorld();
+    if(!S.unlocked[def.res]) return;
+    const lvl = getLevel(def.id);
+    const costNow = costForWorld(def);
+    const btn=document.createElement('button');
+    btn.className='upg';
+    btn.disabled = !canAffordCost(costNow);
+    const costText = ('coins' in costNow) ? `${fmt(costNow.coins)} Coins` : Object.entries(costNow).map(([k,v])=>fmt(v)+' '+cap(k)).join(', ');
+    btn.innerHTML = `
+      <div class="title">${def.title} <span class="badge">Lv.${lvl}</span></div>
+      <div class="muted">${def.desc}</div>
+      <div class="cost">Cost: ${costText}</div>`;
+    btn.addEventListener('click', ()=>{
+      const currentCost = costForWorld(def);
+      if(!canAffordCost(currentCost)) return;
+      payCost(currentCost);
+      const newLvl = getLevel(def.id)+1;
+      setLevel(def.id, newLvl);
+      if(def.type==='click') S.click[def.res]+=1;
+      else S.auto[def.res]+=CONFIG.autoPerPurchase;
+      updateAll(); renderShop();
+    });
+    box.appendChild(btn);
+  });
+}
+
+// ---- Unlocks ----
+const unlocks=[
+  { id:'unlock_stone',   title:'Unlock Stone',   desc:'Enables Stone button.',   cost:{wood:1000},  target:'stone' },
+  { id:'unlock_iron',    title:'Unlock Iron',    desc:'Enables Iron button.',    cost:{stone:2000}, target:'iron' },
+  { id:'unlock_gold',    title:'Unlock Gold',    desc:'Enables Gold button.',    cost:{iron:7000},  target:'gold' },
+  { id:'unlock_diamond', title:'Unlock Diamond', desc:'Enables Diamond button.', cost:{gold:15000}, target:'diamond' },
+  { id:'unlock_dirt',    title:'Unlock Dirt',    desc:'Enables Dirt button.',    cost:{wood:500,stone:250}, target:'dirt' }
+];
+function unlockCostForWorld(u){
+  if(meta.activeWorld!=='w2') return u.cost;
+  return { coins: applyW2DiscountCoins( weightedOfValues(VALUES_W2, u.cost) ) };
+}
+function renderUnlocks(){
+  const box=document.getElementById('unlockList'); box.innerHTML='';
+  const S=currentWorld();
+  unlocks.forEach(u=>{
+    const already=S.unlocked[u.target];
+    const cost=unlockCostForWorld(u);
+    const row=document.createElement('div');
+    const costText=('coins' in cost)? `${fmt(cost.coins)} Coins` : Object.entries(cost).map(([k,v])=>fmt(v)+' '+cap(k)).join(', ');
+    row.innerHTML = `
+      <div class="muted">${u.title} — ${u.desc}</div>
+      <div>${already?'<span class="stat">Unlocked ✅</span>':`<button class="small" data-id="${u.id}">Unlock — ${costText}`}
+      </div>`;
+    if(!already){
+      const btn=row.querySelector('button[data-id]');
+      btn.disabled=!canAffordCost(cost);
+      btn.addEventListener('click', ()=>{
+        const cNow=unlockCostForWorld(u);
+        if(!canAffordCost(cNow)) return;
+        payCost(cNow);
+        S.unlocked[u.target]=true;
+        updateAll(); renderUnlocks(); renderShop();
+      });
+    }
+    box.appendChild(row);
+  });
+}
+
+// ---- Unique Upgrades (per world) ----
+const uniqueDefs=[
+  { id:'wood_click_boost',  title:'Sturdy Handles (Wood)',   desc:'+1 Wood per click per level.',           baseCost:{wood:500},   scale:1.8 },
+  { id:'stone_wood_click',  title:'Axe Sharpening (Stone)',  desc:'+1 Wood per click per level.',           baseCost:{stone:800},  scale:1.85 },
+  { id:'iron_auto_passive', title:'Reinforced Drills (Iron)',desc:'+1 passive auto/sec to ALL resources per level.', baseCost:{iron:1200}, scale:2.0 },
+  { id:'gold_frenzy',       title:'Frenzy Trainer (Gold)',   desc:'Unlock/shorten Frenzy: x2 ALL for 20s. Cooldown -15s/level (base 180s, min 30s).', baseCost:{gold:2000}, scale:2.1 },
+  { id:'diamond_pp_bonus',  title:'Prestige Scholar (Diamond)', desc:'+10% Prestige Points per level (persists across prestiges in this world).', baseCost:{diamond:40}, scale:2.25 }
+];
+function uniqueCostForWorld(def){
+  const S=currentWorld();
+  const lvl = S.uniqueLevels[def.id]||0;
+  const base = def.baseCost;
+  const resCost={}; for(const k in base) resCost[k]=Math.floor(base[k]*Math.pow(def.scale, lvl));
+  if(meta.activeWorld!=='w2') return resCost;
+  return { coins: applyW2DiscountCoins( weightedOfValues(VALUES_W2, resCost) ) };
+}
+function renderUnique(){
+  const box=document.getElementById('uniqueList'); box.innerHTML='';
+  const S=currentWorld();
+  uniqueDefs.forEach(def=>{
+    const lvl = S.uniqueLevels[def.id]||0;
+    const cost = uniqueCostForWorld(def);
+    const btn = document.createElement('button');
+    btn.className='upg';
+    btn.disabled = !canAffordCost(cost);
+    const costText=('coins' in cost)? `${fmt(cost.coins)} Coins` : Object.entries(cost).map(([k,v])=>fmt(v)+' '+cap(k)).join(', ');
+    btn.innerHTML = `
+      <div class="title">${def.title} <span class="badge">Lv.${lvl}</span></div>
+      <div class="muted">${def.desc}</div>
+      <div class="cost">Cost: ${costText}</div>`;
+    btn.addEventListener('click', ()=>{
+      const c = uniqueCostForWorld(def);
+      if(!canAffordCost(c)) return;
+      payCost(c);
+      S.uniqueLevels[def.id] = (S.uniqueLevels[def.id]||0)+1;
+      updateAll(); renderUnique();
+    });
+    box.appendChild(btn);
+  });
+}
+
+// Frenzy button logic
+document.getElementById('frenzyBtn').addEventListener('click', ()=>{
+  const S=currentWorld();
+  const lvl = S.uniqueLevels.gold_frenzy||0;
+  if(lvl<=0) return;
+  const cdBase = 180;
+  const cd = Math.max(30, cdBase - 15*(lvl-1));
+  const now = Date.now();
+  if(now < S.frenzyCooldownUntil || now < S.frenzyUntil) return;
+  S.frenzyUntil = now + 20000; // 20s active
+  S.frenzyCooldownUntil = now + cd*1000;
+  updateAll();
+});
+
+// ---- Gardens (per world) ----
+function gardenCostForWorld(S){
+  const base = {dirt:150, wood:100};
+  const d = Math.min(S.gardens*0.1, 0.3);
+  const resCost={}; for(const k in base) resCost[k]=Math.max(1, Math.floor(base[k]*(1-d)));
+  if(meta.activeWorld!=='w2') return resCost;
+  return { coins: applyW2DiscountCoins( weightedOfValues(VALUES_W2, resCost) ) };
+}
+function renderGardens(){
+  const box=document.getElementById('gardenList'); box.innerHTML='';
+  const S=currentWorld();
+  const costNow = gardenCostForWorld(S);
+  const costText=('coins' in costNow)? `${fmt(costNow.coins)} Coins` : Object.entries(costNow).map(([k,v])=>fmt(v)+' '+cap(k)).join(', ');
+  const btn=document.createElement('button');
+  btn.className='upg';
+  btn.disabled=!canAffordCost(costNow);
+  btn.innerHTML = `
+    <div class="title">Garden Plot</div>
+    <div class="muted">-10% shop costs (stacks, up to 30%). Owned: ${S.gardens}</div>
+    <div class="cost">Cost: ${costText}</div>`;
+  btn.addEventListener('click', ()=>{
+    const cNow = gardenCostForWorld(S);
+    if(!canAffordCost(cNow)) return;
+    payCost(cNow); S.gardens++; updateAll(); renderGardens(); renderShop(); renderUnlocks();
+  });
+  box.appendChild(btn);
+}
+
+// ---- Prestige Points & Shop ----
+function renderPrestige(){
+  const box = document.getElementById('prestigeList'); 
+  box.innerHTML = '';
+  const S = currentWorld();
+
+  // Standard PP (diamonds)
+  const potPP = Math.floor((S.resources.diamond/1000) * (1 + 0.10*(S.uniqueLevels.diamond_pp_bonus||0)));
+  const globalLvl = meta.prestigeUpgrades.global.level||0;
+  const isW2 = (meta.activeWorld === 'w2');
+  const potW2PP = isW2 ? Math.floor((S.coins||0) / 3000) : 0;
+
+  box.innerHTML = `
+    <div class="muted">Prestige resets current world's resources/unlocks (not lifetime score).</div>
+    <div style="margin-top:6px">
+      Standard PP (from Diamonds): <strong>${fmt(potPP)}</strong>
+      <span class="small-muted">(+10%/lvl: Diamond Scholar)</span>
+    </div>
+    ${isW2 ? `
+      <div style="margin-top:6px">
+        World 2 PP (from Coins): <strong>${fmt(potW2PP)}</strong>
+        <span class="small-muted">(1 per 3,000 Coins)</span>
+      </div>` : ''}
+    <div style="margin-top:6px">Global Level: <strong>${globalLvl}</strong> 
+      <span class="tag">x${fmt(Math.pow(2,globalLvl))}</span>
+    </div>
+  `;
+}
+document.getElementById('prestigeBtn').addEventListener('click', ()=>{
+  const S=currentWorld();
+  const prevScore = totalScore();
+const bonus = 1 + 0.10*(S.uniqueLevels.diamond_pp_bonus||0);
+  const pp = Math.floor((S.resources.diamond/1000) * bonus);
+
+  const isW2 = (meta.activeWorld === 'w2');
+  const w2pp = isW2 ? Math.floor((S.coins||0) / 3000) : 0;
+
+  const confirmMsg = isW2
+    ? `Prestige now?\n\nStandard PP (diamonds): ${pp}\nWorld 2 PP (coins): ${w2pp}`
+    : `Prestige for ${pp} PP?`;
+  if(!confirm(confirmMsg)) return;
+
+  // Bank remaining weighted value into lifetime
+  const vals = isW2 ? VALUES_W2 : VALUES_W1;
+  const remaining = weightedOfValues(vals, S.resources);
+  bankToLifetime(remaining);
+
+  // Award points
+  meta.prestigePoints += pp;
+  if(isW2) meta.w2PrestigePoints = (meta.w2PrestigePoints||0) + w2pp;
+
+  // Reset current world
+  RES_LIST.forEach(r=>{ S.resources[r]=0; S.click[r]=1; S.auto[r]=0; S.unlocked[r]=(r==='wood'); });
+  S.coins=0;
+  S.gardens=0;
+  S.shopLevels = {};
+  const keepDiamond = S.uniqueLevels.diamond_pp_bonus||0;
+  S.uniqueLevels = { wood_click_boost:0, stone_wood_click:0, iron_auto_passive:0, gold_frenzy:0, diamond_pp_bonus:keepDiamond };
+  S.frenzyUntil=0; S.frenzyCooldownUntil=0;
+  
+// Reset fishing upgrades depending on world
+const F=S.fishing;
+if(isW2){
+  // In World 2, prestige should reset ALL fishing upgrades
+  S.fishing = newFishingState();
+} else {
+  // In World 1, keep fishing upgrades but normalize stamina to max
+  F.stamina = Math.min(F.stamina, F.maxStamina);
+}
+
+// Preserve score across prestige
+  if(isW2){ meta.lifetimeScoreW2 = prevScore; } else { meta.lifetimeScoreW1 = prevScore; }
+  renderAll(); updateAll(); saveLocal();
+});
+
+
+// Prestige Shop (GLOBAL x3 scaling; applies to all worlds)
+function prestigeUpgradeCost(level){ return Math.pow(3, level); } // 1,3,9,27,...
+function renderPrestigeShop(){
+  const box=document.getElementById('prestigeShop'); box.innerHTML='';
+
+  // Global
+  const gLvl = meta.prestigeUpgrades.global.level||0;
+  const gCost = prestigeUpgradeCost(gLvl);
+  const gBtn=document.createElement('button');
+  gBtn.className='upg';
+  gBtn.disabled = meta.prestigePoints < gCost;
+  gBtn.innerHTML = `
+    <div class="title">Global x2 Multiplier</div>
+    <div class="muted">Doubles ALL resources (clicks & autos) in all worlds. Current: Level ${gLvl} <span class="tag">x${fmt(Math.pow(2,gLvl))}</span></div>
+    <div class="cost">Cost: ${fmt(gCost)} PP</div>`;
+  gBtn.addEventListener('click', ()=>{
+    const c = prestigeUpgradeCost(meta.prestigeUpgrades.global.level||0);
+    if(meta.prestigePoints < c) return;
+    meta.prestigePoints -= c;
+    meta.prestigeUpgrades.global.level = (meta.prestigeUpgrades.global.level||0)+1;
+    updateAll(); renderPrestige(); renderPrestigeShop(); saveLocal();
+  });
+  box.appendChild(gBtn);
+
+  // Per-resource grid
+  const grid=document.createElement('div');
+  grid.className='grid3';
+  ['wood','stone','iron','gold','diamond','dirt'].forEach(r=>{
+    const lvl = (meta.prestigeUpgrades[r]?.level)||0;
+    const cost = prestigeUpgradeCost(lvl);
+    const btn=document.createElement('button');
+    btn.className='upg';
+    btn.disabled = meta.prestigePoints < cost;
+    btn.innerHTML = `
+      <div class="title">${cap(r)} x2 Multiplier</div>
+      <div class="muted">Doubles only ${cap(r)} in all worlds. Current: Level ${lvl} <span class="tag">x${fmt(Math.pow(2,lvl))}</span></div>
+      <div class="cost">Cost: ${fmt(cost)} PP</div>`;
+    btn.addEventListener('click', ()=>{
+      const c = prestigeUpgradeCost((meta.prestigeUpgrades[r]?.level)||0);
+      if(meta.prestigePoints < c) return;
+      meta.prestigeUpgrades[r] = meta.prestigeUpgrades[r] || {level:0};
+      meta.prestigePoints -= c;
+      meta.prestigeUpgrades[r].level += 1;
+      updateAll(); renderPrestige(); renderPrestigeShop(); saveLocal();
+    });
+    grid.appendChild(btn);
+  });
+  box.appendChild(grid);
+}
+
+// ---- World 2 Prestige Shop ----
+function w2PrestigeCost(level){ return Math.pow(3, level); } // x3 scaling
+function renderW2PrestigeShop(){
+  const box = document.getElementById('w2PrestigeShop');
+  if(!box) return;
+
+  const w2pp = meta.w2PrestigePoints||0;
+  const ups = meta.w2PrestigeUpgrades || (meta.w2PrestigeUpgrades={ autoDouble:{level:0}, twoFishChance:{level:0}, coinDouble:{level:0} });
+
+  function makeBtn(title, desc, key){
+    const lvl = ups[key].level||0;
+    const cost = w2PrestigeCost(lvl);
+    const btn = document.createElement('button');
+    btn.className = 'upg';
+    btn.disabled = w2pp < cost;
+    btn.innerHTML = `
+      <div class="title">${title} <span class="badge">Lv.${lvl}</span></div>
+      <div class="muted">${desc}</div>
+      <div class="cost">Cost: ${fmt(cost)} W2PP (You have ${fmt(w2pp)})</div>
+    `;
+    btn.addEventListener('click', ()=>{
+      const curr = meta.w2PrestigeUpgrades[key].level||0;
+      const c = w2PrestigeCost(curr);
+      if((meta.w2PrestigePoints||0) < c) return;
+      meta.w2PrestigePoints -= c;
+      meta.w2PrestigeUpgrades[key].level = curr + 1;
+      saveLocal();
+      renderPrestige(); renderW2PrestigeShop(); updateAll();
+    });
+    return btn;
+  }
+
+  box.innerHTML = '';
+  box.appendChild(makeBtn('AutoCaster ×2','Auto fisher catches twice as many fish per auto cast. Stacks multiplicatively.','autoDouble'));
+  box.appendChild(makeBtn('+25% 2-Fish Chance','Adds +0.25 absolute chance per level to getting +1 extra fish per cast (manual & auto).','twoFishChance'));
+  box.appendChild(makeBtn('Coins ×2','Doubles Coins gained when selling fish. Stacks multiplicatively.','coinDouble'));
+}
+
+// ---- Worlds panel ----
+function renderWorlds(){
+  const box=document.getElementById('worldsBox'); box.innerHTML='';
+  // World 1
+  const w1=document.createElement('div');
+  w1.className='world-card';
+  w1.innerHTML = `<strong>World 1</strong> ${meta.activeWorld==='w1'?'<span class="tag">Current</span>':''}<br>
+  <span class="small-muted">Standard progression (ignored after World 2 unlock). Brown theme.</span><br>
+  ${meta.activeWorld==='w1'?'':`<button class="small" id="enterW1">Enter World 1</button>`}`;
+  box.appendChild(w1);
+  if(meta.activeWorld!=='w1'){ w1.querySelector('#enterW1').addEventListener('click', ()=>{ meta.activeWorld='w1'; renderAll(); updateAll(); saveLocal(); }); }
+
+  // World 2
+  const w2=document.createElement('div');
+  w2.className='world-card';
+  const unlocked = !!meta.worldsUnlocked.w2;
+  w2.innerHTML = `<strong>World 2</strong> ${meta.activeWorld==='w2'?'<span class="tag">Current</span>':''}<br>
+  <span class="small-muted">${unlocked?'Counts for score & leaderboard (10× values). Uses universal Coins. Light blue theme.':'Unlock for 1000 Prestige Points (becomes the only scoring world).'}</span><br>
+  ${unlocked ? (meta.activeWorld==='w2'?'':`<button class="small" id="enterW2">Enter World 2</button>`) : `<button class="small" id="buyW2">Unlock — 1000 PP</button>`}`;
+  box.appendChild(w2);
+  if(!unlocked){
+    const btn=w2.querySelector('#buyW2');
+    btn.disabled = meta.prestigePoints < 1000;
+    btn.addEventListener('click', ()=>{
+      if(meta.prestigePoints < 1000) return;
+      meta.prestigePoints -= 1000;
+      meta.worldsUnlocked.w2 = true;
+      if(!worlds.w2) worlds.w2 = newWorldState();
+      renderWorlds(); updateAll(); saveLocal();
+    });
+  } else if(meta.activeWorld!=='w2'){
+    w2.querySelector('#enterW2').addEventListener('click', ()=>{ meta.activeWorld='w2'; renderAll(); updateAll(); saveLocal(); });
+  }
+}
+
+// ---- Fishing (World 2 only) ----
+function autoIntervalForLevel(lvl){
+  // Base 60s, -5s per level, min 1s
+  lvl = Number(lvl)||0;
+  const ms = 60000 - (lvl * 5000);
+  return Math.max(1000, ms);
+}
+
+function rodUpgradeCost(level){
+  // Exact sequence: 250, 1500, 10000, 25000; then doubles afterwards
+  const seq = [250, 1500, 10000, 25000];
+  level = Number(level)||0;
+  if(level < seq.length) return applyW2DiscountCoins(seq[level]);
+  return applyW2DiscountCoins(Math.floor(seq[seq.length-1] * Math.pow(2, level - (seq.length-1))));
+}
+function autoUpgradeCost(level){
+  return applyW2DiscountCoins( Math.floor(1500 * Math.pow(1.9, level||0)) );
+}
+function autoUpgrade(){
+  const S=currentWorld(); const F=S.fishing;
+  const cost = autoUpgradeCost(F.autoLevel||0);
+  if(!payCostCoins(cost)) { alert('Not enough Coins for Auto Fisher upgrade.'); return; }
+  F.autoLevel = (F.autoLevel||0) + 1;
+  saveLocal(); updateAll(); renderFishingEmbed();
+}
+
+const FISHES = [
+  { key:'minnow',   name:'Minnow',       rodReq:0, rarity:'common',    coin:5 },
+  { key:'bluegill', name:'Bluegill',     rodReq:0, rarity:'common',    coin:7 },
+  { key:'crayfish', name:'Crayfish',     rodReq:0, rarity:'uncommon',  coin:10 },
+  { key:'trout',    name:'Trout',        rodReq:1, rarity:'uncommon',  coin:20 },
+  { key:'perch',    name:'Perch',        rodReq:1, rarity:'uncommon',  coin:18 },
+  { key:'bass',     name:'Bass',         rodReq:1, rarity:'rare',      coin:35 },
+  { key:'salmon',   name:'Salmon',       rodReq:2, rarity:'rare',      coin:60 },
+  { key:'pike',     name:'Pike',         rodReq:2, rarity:'rare',      coin:70 },
+  { key:'bigcarp',  name:'Big Carp',     rodReq:2, rarity:'rare',      coin:55 },
+  { key:'golden',   name:'Golden Carp',  rodReq:3, rarity:'epic',      coin:300 },
+  { key:'catking',  name:'Catfish King', rodReq:3, rarity:'epic',      coin:160 },
+  { key:'diamondfish', name:'Diamond Fish', rodReq:4, rarity:'legendary', coin:600 },
+  { key:'marlin',   name:'Marlin',       rodReq:4, rarity:'legendary', coin:500 },
+  { key:'leviathan',name:'Leviathan',    rodReq:5, rarity:'mythic',    coin:2000 },
+  { key:'abyssray', name:'Abyssal Ray',  rodReq:5, rarity:'mythic',    coin:1200 }
+];
+const RARITY_BASE_WEIGHT = { common: 100, uncommon: 45, rare: 18, epic: 7, legendary: 2.5, mythic: 0.7 };
+function rarityRodFactor(r){
+  switch(r){
+    case 'common': return 0.05;
+    case 'uncommon': return 0.10;
+    case 'rare': return 0.20;
+    case 'epic': return 0.35;
+    case 'legendary': return 0.55;
+    case 'mythic': return 0.8;
+  }
+  return 0.1;
+}
+function fishingWeights(S){
+  const rod = S.fishing.rodLevel||0;
+  const bait = S.fishing.baitLevel||0;
+  const w = {};
+  FISHES.forEach(f=>{
+    if(rod < f.rodReq){ w[f.key]=0; return; }
+    const base = RARITY_BASE_WEIGHT[f.rarity] || 1;
+    const rodBoost = 1 + (rarityRodFactor(f.rarity) * rod);
+    const baitBoost = 1 + bait*0.05;
+    w[f.key] = base * rodBoost * baitBoost;
+  });
+  return w;
+}
+function rollWeighted(map){
+  const entries = Object.entries(map).filter(([,v])=>v>0);
+  const sum = entries.reduce((t, [,v])=>t+v,0);
+  let r = Math.random()*sum;
+  for(const [k,v] of entries){
+    if(r < v) return k;
+    r -= v;
+  }
+  return entries.length? entries[0][0] : null;
+}
+function fishingCast(fromLeft=false, opts={}){
+  const ignoreStamina = !!opts.ignoreStamina;
+  if(meta.activeWorld!=='w2'){ if(!opts.silent) alert('Fishing is available in World 2.'); return; }
+  const S=currentWorld();
+  const F=S.fishing;
+
+  if(!ignoreStamina){
+    if(F.stamina<=0){ return; }
+    F.stamina -= 1;
+  }
+
+  // Base catches
+  let baseCount = 1;
+
+  // Chance to add +1 extra fish (original + bait bonus)
+  let extraChance = 0.20 + 0.05*(F.baitLevel||0);
+
+  // Add W2 prestige "+25% two-fish chance" per level (absolute), clamp to 95%
+  const twoFishLvl = (meta.w2PrestigeUpgrades?.twoFishChance?.level)||0;
+  extraChance = Math.min(0.95, extraChance + 0.25 * twoFishLvl);
+
+  const extra  = Math.random() < extraChance ? 1 : 0;
+  const extra2 = Math.random() < (0.05*(F.baitLevel||0)) ? 1 : 0; // small second roll
+  let catches = baseCount + extra + extra2;
+
+  // AutoCaster ×2 applies only to auto casts
+  if(ignoreStamina){
+    const autoLvl = (meta.w2PrestigeUpgrades?.autoDouble?.level)||0;
+    const mult = Math.pow(2, autoLvl);
+    catches = Math.max(1, Math.floor(catches * mult));
+  }
+
+  for(let i=0;i<catches;i++){
+    const key = rollWeighted(fishingWeights(S));
+    if(!key) continue;
+    F.inventory[key] = (F.inventory[key]||0)+1;
+    const fish = FISHES.find(x=>x.key===key);
+    if(fish && fish.diamonds){ S.resources.diamond += fish.diamonds * multFor('diamond'); }
+  }
+
+  renderFishingEmbed();
+  saveLocal();
+  if(fromLeft && !opts.silent){
+    const btn = document.getElementById('castBtn');
+    if(btn) floatFrom(btn, '+'+catches+' 🎣');
+  }
+}
+function fishingSellAll(){
+  const S=currentWorld();
+  const F=S.fishing;
+  let coinsGain=0;
+  for(const k in F.inventory){
+    const fish = FISHES.find(x=>x.key===k); if(!fish) continue;
+    coinsGain += (F.inventory[k]||0) * (fish.coin||0);
+    F.inventory[k]=0;
+  }
+
+  // Apply W2 Coins ×2 (stacking)
+  const coinLvl = (meta.w2PrestigeUpgrades?.coinDouble?.level)||0;
+  coinsGain = Math.floor(coinsGain * Math.pow(2, coinLvl));
+
+  S.coins += coinsGain;
+  renderFishingEmbed();
+  updateAll();
+  saveLocal();
+}
+function fishingUpgradeRod(){
+  const S=currentWorld();
+  const F=S.fishing;
+  const cost = rodUpgradeCost(F.rodLevel||0);
+  if(!payCostCoins(cost)) return alert('Not enough Coins');
+  F.rodLevel = (F.rodLevel||0)+1;
+  F.maxStamina = 10 + 3*(F.rodLevel) + 5*(F.tankLevel||0);
+  renderFishingEmbed(); updateAll(); saveLocal();
+}
+function fishingUpgradeBait(){
+  const S=currentWorld();
+  const F=S.fishing;
+  const cost = applyW2DiscountCoins( Math.floor(1000 * Math.pow(1.8, F.baitLevel||0)) );
+  if(!payCostCoins(cost)) return alert('Not enough Coins');
+  F.baitLevel = (F.baitLevel||0)+1;
+  renderFishingEmbed(); updateAll(); saveLocal();
+}
+function fishingUpgradeTank(){
+  const S=currentWorld();
+  const F=S.fishing;
+  const cost = applyW2DiscountCoins( Math.floor(700 * Math.pow(1.9, F.tankLevel||0)) );
+  if(!payCostCoins(cost)) return alert('Not enough Coins');
+  F.tankLevel = (F.tankLevel||0)+1;
+  F.maxStamina = 10 + 3*(F.rodLevel||0) + 5*(F.tankLevel||0);
+  renderFishingEmbed(); updateAll(); saveLocal();
+}
+function fishingUpgradeRegen(){
+  const S=currentWorld();
+  const F=S.fishing;
+  const cost = applyW2DiscountCoins( Math.floor(900 * Math.pow(2.0, F.regenLevel||0)) );
+  if(!payCostCoins(cost)) return alert('Not enough Coins');
+  F.regenLevel = (F.regenLevel||0)+1;
+  F.regenMs = Math.max(330, 3500 - 200 * (F.regenLevel||0)); // linear -0.2s per level, floor 0.33s
+  renderFishingEmbed(); updateAll(); saveLocal();
+}
+
+// Fishing render in left panel (W2)
+function renderFishingEmbed(){
+  const isW2 = meta.activeWorld==='w2'; if(!isW2) return;
+  const S=currentWorld(); const F=S.fishing; const inv=F.inventory; const rod=F.rodLevel||0;
+  const bag = document.getElementById('catchBag');
+  bag.innerHTML = Object.values(FISHES).map(info=>`
+    <div class="fish-card ${rod < info.rodReq ? 'lock':''}">
+      <div class="title">${info.name} ${rod < info.rodReq ? `<span class="tag">Rod L${info.rodReq}</span>`:''}</div>
+      <div class="muted">Owned: ${inv[info.key]||0}</div>
+      <div class="small-muted">${info.coin} Coins${info.diamonds?` • +${info.diamonds} Diamond on catch`:''}</div>
+    </div>
+  `).join('');
+  // wire buttons
+  const castBtn = document.getElementById('castBtn');
+  const sellBtn = document.getElementById('sellAllBtn');
+  if(castBtn){ castBtn.disabled = (S.fishing.stamina<=0); }
+  const rodBtn  = document.getElementById('rodUpBtn');
+  const baitBtn = document.getElementById('baitUpBtn');
+  const tankBtn = document.getElementById('tankUpBtn');
+  const regenBtn= document.getElementById('regenUpBtn');
+  const autoBtn = document.getElementById('autoUpBtn');
+  const autoStatus = document.getElementById('autoStatus');
+  const autoInfo   = document.getElementById('autoInfo');
+  const autoCostEl = document.getElementById('autoCost');
+
+  // update auto fisher UI
+  const F2 = S.fishing; const lvl = F2.autoLevel||0;
+  autoStatus.textContent = 'ON';
+  autoInfo.textContent = 'Interval: ' + Math.floor(autoIntervalForLevel(lvl)/1000) + 's';
+  autoCostEl.textContent = 'Cost: ' + autoUpgradeCost(lvl).toLocaleString() + ' Coins';
+
+  castBtn.onclick = ()=>fishingCast(true);
+  sellBtn.onclick = fishingSellAll;
+  rodBtn.onclick = fishingUpgradeRod;
+  baitBtn.onclick = fishingUpgradeBait;
+  tankBtn.onclick = fishingUpgradeTank;
+  regenBtn.onclick = fishingUpgradeRegen;
+  autoBtn.onclick = autoUpgrade;
+}
+
+// ---- Online Leaderboard UI ----
+async function renderLeaderboard(){
+  const tbody = document.getElementById('leaderboardRows');
+  const status = document.getElementById('lbStatus');
+  status.textContent = 'Loading…';
+  try{
+    const list = await fetchTop();
+    tbody.innerHTML='';
+    list.forEach((e,i)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${i+1}</td><td>${e.name}</td><td class="right">${fmt(e.score)}</td><td>${e.ts.toLocaleString()}</td>`;
+      tbody.appendChild(tr);
+    });
+    status.textContent = `Showing top ${Math.min(50, list.length)} entries.`;
+  }catch(err){
+    status.textContent = 'Failed to load leaderboard. Check Firebase rules / network.';
+  }
+}
+document.getElementById('submitNow').addEventListener('click', async()=>{
+  const name = (document.getElementById('playerName').value||'').trim() || 'Anonymous';
+  const score = totalScore();
+  const status = document.getElementById('lbStatus');
+  status.textContent = 'Submitting…';
+  try{
+    const res = await submitOnlineUpsert(name, score);
+    status.textContent = res.action==='insert' ? 'Submitted (new entry)!' : (res.action==='update' ? 'Updated with higher score!' : 'No change (existing score is higher or equal).');
+    await renderLeaderboard();
+  }catch(err){
+    status.textContent = 'Submit failed. Check Firebase config / rules.';
+  }
+});
+document.getElementById('refreshLB').addEventListener('click', renderLeaderboard);
+
+// ---- Achievements / Quests (minimal) ----
+const achievements=[
+  {id:'first_wood', name:'First Wood Chop', desc:'Collect your first wood.', unlocked:false, check:()=>currentWorld().resources.wood>=1}
+];
+function loadAchievements(){
+  const a=JSON.parse(localStorage.getItem('rc_achievements')||'{}');
+  achievements.forEach(x=>{ if(a[x.id]) x.unlocked=true; });
+}
+function saveAchievements(){
+  const out={}; achievements.forEach(x=>{ if(x.unlocked) out[x.id]=true; });
+  localStorage.setItem('rc_achievements', JSON.stringify(out));
+}
+function renderAchievements(){
+  const box=document.getElementById('achievementsList'); box.innerHTML='';
+  achievements.forEach(a=>{
+    if(!a.unlocked && a.check()) a.unlocked=true, saveAchievements();
+    const el=document.createElement('div');
+    el.style=`padding:6px;margin-bottom:4px;border-radius:7px;background:${a.unlocked?'#d1fae5':'#f3f4f6'};color:${a.unlocked?'#047857':'#666'};`;
+    el.innerHTML = `<strong>${a.name}</strong> - ${a.desc} ${a.unlocked?'✅':''}`;
+    box.appendChild(el);
+  });
+}
+
+const quests=[
+  {id:'q_wood_50', title:'Warm Up', desc:'Gather 50 Wood (this world).', goal:50, progress:()=>currentWorld().resources.wood, claimed:false, reward:{wood:25}}
+];
+function loadQuests(){ const q=JSON.parse(localStorage.getItem('rc_quests')||'{}'); quests.forEach(x=>x.claimed=!!q[x.id]); }
+function saveQuests(){ const out={}; quests.forEach(x=>out[x.id]=x.claimed); localStorage.setItem('rc_quests', JSON.stringify(out)); }
+function renderQuests(){
+  const box=document.getElementById('questsList'); box.innerHTML='';
+  quests.forEach(q=>{
+    const p=Math.min(q.progress(), q.goal);
+    const done=p>=q.goal;
+    const el=document.createElement('div');
+    el.style=`padding:7px 8px;margin-bottom:7px;border-radius:8px;background:${q.claimed?'#cfe2ff':(done?'#d1fae5':'#f3f4f6')};color:${q.claimed?'#4b5563':(done?'#047857':'#444')};`;
+    el.innerHTML = `
+      <strong>${q.title}</strong> — ${q.desc}<br>
+      <div style="margin:4px 0 6px 0;">
+        <progress value="${p}" max="${q.goal}" style="width:70%;">${p}/${q.goal}</progress>
+        <span style="font-size:12px;margin-left:6px;">${fmt(p)}/${fmt(q.goal)}</span>
+      </div>
+      <span style="font-size:13px;">Reward: ${q.reward.wood} Wood</span>
+      ${done && !q.claimed ? `<button class="small" data-claim="${q.id}">Claim</button>` : (q.claimed?'<span style="margin-left:10px;color:#0ea5e9;">Claimed!</span>':'')}
+    `;
+    el.addEventListener('click',(e)=>{
+      if(e.target && e.target.getAttribute('data-claim')===q.id){
+        q.claimed=true; currentWorld().resources.wood+=q.reward.wood; saveQuests(); renderQuests(); updateAll();
+      }
+    });
+    box.appendChild(el);
+  });
+}
+
+// Render + Update
+function renderAll(){ renderShop(); renderUnlocks(); renderUnique(); renderGardens(); renderPrestige(); renderPrestigeShop(); renderW2PrestigeShop(); renderWorlds(); renderLeaderboard(); renderAchievements(); renderQuests(); renderFishingEmbed(); }
+function updateAll(){ updateResourceUI(); renderUnlocks(); renderUnique(); renderShop(); renderGardens(); renderPrestige(); renderPrestigeShop(); renderW2PrestigeShop(); renderWorlds(); renderLeaderboard(); renderAchievements(); renderQuests(); renderFishingEmbed(); saveLocal(); }
+
+// Init
+bindClickButtons();
+loadLocal(); loadAchievements(); loadQuests();
+renderAll(); updateAll();
+showPanel('shop');
+</script>
+<script type="module">
+
 // ---- Firebase (Auto, hard-coded) ----
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { getFirestore, collection, setDoc, updateDoc, doc, query, where, orderBy, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
@@ -1832,6 +2752,7 @@ window.W3Module = {
   tick: () => w3_renderAll()
 };
 })();
+
 
 </script>
 </body>
