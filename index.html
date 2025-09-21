@@ -2755,5 +2755,54 @@ window.W3Module = {
 
 
 </script>
+
+<script type="module">
+// Minimal, non-invasive addition: add a World 3 button in the Worlds section
+(function(){
+  const _renderWorlds = window.renderWorlds;
+  window.renderWorlds = function(){
+    if(_renderWorlds) _renderWorlds();
+    try{
+      const box = document.getElementById('worldsBox');
+      if(!box) return;
+      if(document.getElementById('w3Card')) return; // already added
+
+      const card = document.createElement('div');
+      card.id = 'w3Card';
+      card.className = 'world-card';
+      const isActive = (window.meta && meta.activeWorld==='w3');
+      const unlocked = (window.meta && meta.worldsUnlocked && meta.worldsUnlocked.w3 !== false);
+
+      card.innerHTML = `<strong>World 3</strong> ${isActive?'<span class="tag">Current</span>':''}<br>
+        <span class="small-muted">${unlocked ? 'Combat mode.' : 'Unlock to enter.'}</span><br>
+        ${isActive ? '' : '<button class="small" id="enterW3">Enter World 3</button>'}`;
+
+      box.appendChild(card);
+
+      const btn = card.querySelector('#enterW3');
+      if(btn){
+        btn.addEventListener('click', ()=>{
+          try{
+            if(!window.meta) return;
+            if(!meta.worldsUnlocked) meta.worldsUnlocked = { w1:true, w2:false };
+            if(typeof meta.worldsUnlocked.w3 === 'undefined') meta.worldsUnlocked.w3 = true;
+            meta.activeWorld = 'w3';
+
+            if(!window.worlds) window.worlds = {};
+            if(!worlds.w3) worlds.w3 = { w3state: (window.W3 || {}) };
+
+            if(window.renderAll) renderAll();
+            if(window.updateAll) updateAll();
+            if(window.saveLocal) saveLocal();
+          }catch(e){}
+        });
+      }
+    }catch(e){}
+  };
+  // Render once to ensure button appears when opening Worlds tab
+  try{ if(window.renderWorlds) renderWorlds(); }catch(e){}
+})();
+</script>
+
 </body>
 </html>
