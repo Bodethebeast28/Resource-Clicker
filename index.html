@@ -3481,6 +3481,37 @@ body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
 
 
 
+
+<!-- Global Dark Theme Overrides (append-only) -->
+<style>
+/* Global dark background and light text */
+html, body { background:#000 !important; color:#e5e7eb !important; }
+header { background:#000 !important; color:#fff !important; }
+/* Cards and panels */
+.card { background:#0b0b0b !important; border-color:#1f2937 !important; }
+.resource { background:#0b0b0b !important; border-color:#1f2937 !important; }
+.notice, .warn { background:#111827 !important; color:#f9fafb !important; border-color:#1f2937 !important; }
+.small-muted, .muted { color:#9aa4b2 !important; }
+.stat, h1, h2, h3, h4, h5, h6 { color:#f3f4f6 !important; }
+/* Buttons: all green */
+button, .tab-btn, .upg { background:#16a34a !important; color:#f0fdf4 !important; border:none !important; }
+button.small { background:#16a34a !important; }
+.tab-btn.active { background:#22c55e !important; }
+button:disabled, .upg:disabled { background:#064e3b !important; color:#9ca3af !important; }
+/* Inputs */
+input[type="text"], textarea { background:#111827 !important; color:#e5e7eb !important; border-color:#1f2937 !important; }
+/* Tables */
+table.lb th, table.lb td { border-color:#1f2937 !important; color:#e5e7eb !important; }
+/* Progress bars */
+progress::-webkit-progress-bar { background:#1f2937; }
+progress::-webkit-progress-value { background:#22c55e; }
+progress::-moz-progress-bar { background:#22c55e; }
+/* World tags/badges toned for dark */
+.tag { background:#1f2937 !important; color:#a5b4fc !important; }
+.badge { background:#052e16 !important; color:#a7f3d0 !important; }
+.coin { background:#3f3f0e !important; color:#fde68a !important; border-color:#a16207 !important; }
+</style>
+
 <style>
 /* Force-hide all other content while in W3 (full-screen swap) */
 body.theme-w3 #resourceGrid,
@@ -3508,15 +3539,15 @@ body.theme-w3 #tabQuests { display: none !important; }
 #w3Full { display:none; margin-top:8px; }
 body.theme-w3 #w3Full { display:block; }
 #w3Full .w3-grid { display:grid; grid-template-columns: 1.1fr 0.9fr; gap:12px; }
-#w3Full .card { background:#fff; padding:12px; border-radius:10px; box-shadow:0 6px 18px rgba(2,6,23,0.06); }
+#w3Full .card { background:#0b0b0b; padding:12px; border-radius:10px; box-shadow:0 6px 18px rgba(2,6,23,0.25); }
 #w3Full h3 { margin:0 0 8px 0; }
-#w3Full .muted { color:#64748b; font-size:13px; }
-#w3Full .stat { font-weight:700; }
+#w3Full .muted { color:#9aa4b2; font-size:13px; }
+#w3Full .stat { font-weight:700; color:#f3f4f6; }
 #w3Full .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 #w3Full .grid2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 #w3Full .grid3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
-#w3Full .upg { display:block; width:100%; text-align:left; padding:10px; border-radius:8px; border:1px solid #e5e7eb; background:#f8fafc; cursor:pointer; }
-#w3Full .upg:disabled { background:#f1f5f9; color:#94a3b8; cursor:not-allowed; }
+#w3Full .upg { display:block; width:100%; text-align:left; padding:10px; border-radius:8px; border:1px solid #14532d; background:#166534; color:#ecfdf5; cursor:pointer; }
+#w3Full .upg:disabled { background:#064e3b; border-color:#064e3b; color:#9ca3af; cursor:not-allowed; }
 #w3Full progress { width:100%; height:10px; }
 </style>
 
@@ -3533,16 +3564,19 @@ body.theme-w3 #w3Full { display:block; }
     wrap.className = 'card';
     wrap.innerHTML = `
       <h3>World 3 — Combat</h3>
-      <div class="muted">Fight mobs, earn trophies, unlock floors. Each floor has 2 tougher mobs.</div>
+      <div class="muted">Fight mobs, earn trophies, unlock floors. <strong>Each floor has 2 tougher mobs.</strong></div>
       <div class="row" style="justify-content:space-between;margin-top:6px">
         <div>Floor: <span id="w3_floor" class="stat">1</span> / <span id="w3_floorMax" class="stat">1</span></div>
         <div class="row">
-          <button id="w3_prevFloor" class="upg" style="padding:6px 10px">Prev Floor</button>
-          <button id="w3_nextFloor" class="upg" style="padding:6px 10px">Next Floor</button>
+          <button id="w3_prevFloor" class="upg" style="padding:6px 10px"><strong>◀ Prev Floor</strong></button>
+          <button id="w3_nextFloor" class="upg" style="padding:6px 10px"><strong>Next Floor ▶</strong></button>
         </div>
       </div>
       <div class="row" style="margin-top:6px">
-        <button id="w3_unlockFloor" class="upg"><div><strong>Unlock Next Floor</strong></div><div class="muted" id="w3_unlockCost">Cost: — trophies</div></button>
+        <button id="w3_unlockFloor" class="upg">
+          <div><strong>Unlock Next Floor</strong></div>
+          <div class="muted" id="w3_unlockCost">Cost: — trophies</div>
+        </button>
       </div>
       <div class="w3-grid" style="margin-top:8px">
         <div class="card">
@@ -3561,8 +3595,14 @@ body.theme-w3 #w3Full { display:block; }
             <progress id="w3_mobBar" value="0" max="100"></progress>
             <div class="muted" id="w3_floorInfo" style="margin-top:6px">Floor 1</div>
             <div class="row" style="margin-top:8px">
-              <button id="w3_attack" class="upg" style="text-align:center"><div><strong>Attack</strong></div><div class="muted">Costs 1 stamina</div></button>
-              <button id="w3_flee" class="upg" style="text-align:center"><div><strong>Flee</strong></div><div class="muted">Swap to next mob (same floor)</div></button>
+              <button id="w3_attack" class="upg" style="text-align:center">
+                <div><strong>Attack</strong></div>
+                <div class="muted">Deal damage equal to your <strong>Power</strong> (costs 1 Stamina)</div>
+              </button>
+              <button id="w3_flee" class="upg" style="text-align:center">
+                <div><strong>Flee</strong></div>
+                <div class="muted">Swap to the other mob on this floor</div>
+              </button>
             </div>
           </div>
         </div>
@@ -3571,23 +3611,23 @@ body.theme-w3 #w3Full { display:block; }
           <div class="muted" style="margin:4px 0 8px 0;">Use trophies to upgrade your run or unlock more floors.</div>
           <div class="grid2">
             <button id="w3_upg_power" class="upg">
-              <div><strong>+2 Power</strong></div>
-              <div class="muted">Increase damage per attack</div>
+              <div><strong>Power +2</strong></div>
+              <div class="muted">Attacks deal <strong>+2 damage</strong> per level</div>
               <div class="muted" id="w3_cost_power">Cost: 5</div>
             </button>
             <button id="w3_upg_stamina" class="upg">
-              <div><strong>+2 Max Stamina</strong></div>
-              <div class="muted">Longer attack chains</div>
+              <div><strong>Max Stamina +2</strong></div>
+              <div class="muted">Perform <strong>more attacks</strong> before resting</div>
               <div class="muted" id="w3_cost_stamina">Cost: 6</div>
             </button>
             <button id="w3_upg_regen" class="upg">
-              <div><strong>Faster Regen</strong></div>
-              <div class="muted">-0.2s per level (min 0.4s)</div>
+              <div><strong>Regen Faster</strong></div>
+              <div class="muted">Stamina regenerates <strong>0.2s faster</strong> per level (min 0.4s)</div>
               <div class="muted" id="w3_cost_regen">Cost: 8</div>
             </button>
             <button id="w3_upg_hp" class="upg">
-              <div><strong>+10 Max HP</strong></div>
-              <div class="muted">Survive longer</div>
+              <div><strong>Max HP +10</strong></div>
+              <div class="muted">Gain <strong>+10 HP</strong> per level</div>
               <div class="muted" id="w3_cost_hp">Cost: 7</div>
             </button>
           </div>
@@ -3600,7 +3640,7 @@ body.theme-w3 #w3Full { display:block; }
     return wrap;
   }
 
-  // Base mobs (sorted by HP asc)
+  // Base mobs (expanded and sorted by HP asc for 6 floors / 12 mobs total)
   const BASE_MOBS = [
     {name:'Slime', hp:30, reward:3},
     {name:'Blue Slime', hp:40, reward:4},
@@ -3609,10 +3649,14 @@ body.theme-w3 #w3Full { display:block; }
     {name:'Ogre', hp:120, reward:12},
     {name:'Golem', hp:200, reward:18},
     {name:'Dragon Whelp', hp:350, reward:30},
-    {name:'Wyvern', hp:480, reward:40}
+    {name:'Wyvern', hp:480, reward:40},
+    {name:'Hydra', hp:650, reward:55},
+    {name:'Ancient Drake', hp:900, reward:80},
+    {name:'Titan', hp:1200, reward:120},
+    {name:'Elder Lich', hp:1600, reward:180}
   ].sort((a,b)=>a.hp-b.hp);
 
-  // Group into floors of 2 mobs each (last may have 1)
+  // Group into floors of 2 mobs each
   function floorsFromMobs(list){
     const f=[];
     for(let i=0;i<list.length;i+=2){
@@ -3622,7 +3666,8 @@ body.theme-w3 #w3Full { display:block; }
   }
 
   const FLOORS = floorsFromMobs(BASE_MOBS);
-  const UNLOCK_COSTS = [70, 180]; // cost to unlock floor 2, then floor 3 (stop afterwards unless extended)
+  // Unlock costs: floor2=70, floor3=180, plus three more floors: 750, 2300, 5000
+  const UNLOCK_COSTS = [70, 180, 750, 2300, 5000];
 
   const W3 = {
     hp: 60, hpMax: 60,
@@ -3631,8 +3676,8 @@ body.theme-w3 #w3Full { display:block; }
     power: 5,
     trophies: 0,
     // floors
-    unlockedFloors: 1,   // you start with Floor 1 unlocked
-    currentFloor: 1,     // 1-based floor index for UI
+    unlockedFloors: 1,   // start with Floor 1
+    currentFloor: 1,     // 1-based
     mobIdx: 0
   };
 
@@ -3646,7 +3691,7 @@ body.theme-w3 #w3Full { display:block; }
     return mobs[Math.max(0, Math.min(W3.mobIdx, mobs.length-1))];
   }
 
-  // Extend current mob with runtime hp
+  // Runtime hp for current mob
   const runtime = { mobHp: (currentFloorMobs()[0]||{hp:0}).hp };
 
   function setMob(index){
@@ -3655,17 +3700,15 @@ body.theme-w3 #w3Full { display:block; }
     W3.mobIdx = ((index% mobs.length)+mobs.length)%mobs.length;
     runtime.mobHp = mobs[W3.mobIdx].hp;
   }
-
   function nextMob(){ setMob(W3.mobIdx + 1); }
 
   function unlockNextFloor(){
     const next = W3.unlockedFloors + 1;
-    const cost = UNLOCK_COSTS[next-2]; // floor 2->index 0, floor3->index1
+    const cost = UNLOCK_COSTS[next-2]; // floor 2 -> index0, etc.
     if(!cost) return; // no further floors defined
     if(W3.trophies < cost) return;
     W3.trophies -= cost;
     W3.unlockedFloors = next;
-    // auto-switch to the newly unlocked floor
     W3.currentFloor = next;
     setMob(0);
     render();
@@ -3697,7 +3740,7 @@ body.theme-w3 #w3Full { display:block; }
       costEl.textContent = 'Cost: ' + cost + ' trophies';
       btn.classList.remove('hidden');
     } else {
-      btn.classList.add('hidden'); // no more floors to unlock with given costs
+      btn.classList.add('hidden'); // no more floors to unlock
     }
 
     // Mob box
@@ -3731,8 +3774,7 @@ body.theme-w3 #w3Full { display:block; }
     runtime.mobHp = Math.max(0, runtime.mobHp - W3.power);
     if(runtime.mobHp <= 0){
       W3.trophies += m.reward;
-      // Respawn and rotate to the other mob on the same floor
-      nextMob();
+      nextMob(); // rotate to other mob on same floor
     }
     render();
   }
@@ -3768,7 +3810,7 @@ body.theme-w3 #w3Full { display:block; }
     el.querySelector('#w3_nextFloor').onclick = ()=>{ if(W3.currentFloor<W3.unlockedFloors){ W3.currentFloor++; setMob(0); render(); } };
   }
 
-  // Entry: make the screen full W3
+  // Entry: make the screen full W3 with dark theme
   function enterW3(){
     document.body.classList.add('theme-w3');
     const wn = $('worldName'); if(wn) wn.textContent = 'World 3';
@@ -3790,12 +3832,12 @@ body.theme-w3 #w3Full { display:block; }
       enterW3();
     }
   });
-
   if(location.hash === '#w3'){ enterW3(); }
 
   setInterval(tick, 250);
 })();
 </script>
+
 
 
 </body>
