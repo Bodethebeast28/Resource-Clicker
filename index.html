@@ -3905,6 +3905,92 @@ body.theme-w3 header .muted { display:none !important; }
 })();
 </script>
 
+
+<script type="module">
+// Robust world-leave handler to fix: (1) W1 button going to W2, (2) missing tabs in W2.
+(function(){
+  const $ = (id)=>document.getElementById(id);
+
+  function unhideAllTabsAndPanels(){
+    const ids = ['panelShop','panelUnlocks','panelUnique','panelGarden','panelPrestige','panelWorlds','panelLeaderboard','panelAchievements','panelQuests',
+                 'tabShop','tabUnlocks','tabUnique','tabGarden','tabPrestige','tabWorlds','tabLeaderboard','tabAchievements','tabQuests'];
+    ids.forEach(id=>{ const el = $(id); if(el){ el.classList.remove('hidden'); el.style.display = ''; } });
+  }
+
+  function hideW3UIs(){
+    const el1 = $('w3Full'); if(el1) el1.style.display = 'none';
+    const el2 = $('w3Embed'); if(el2) el2.classList.add('hidden');
+    document.body.classList.remove('theme-w3');
+  }
+
+  function showDefaultFor(world){
+    try{
+      if(world === 'w2'){
+        if(window.showPanel) showPanel('prestige'); // W2 main interaction
+      }else{
+        if(window.showPanel) showPanel('shop');     // W1 main shop
+      }
+    }catch(e){}
+  }
+
+  function goWorld(id){
+    try{
+      // Core switch
+      if(window.meta){
+        meta.activeWorld = id;
+      }
+      hideW3UIs();
+      unhideAllTabsAndPanels();
+
+      if(window.renderAll) renderAll();
+      if(window.updateAll) updateAll();
+      if(window.saveLocal) saveLocal();
+      showDefaultFor(id);
+
+      // Ensure W2 header blurb visible outside W3
+      // (we already scope the hide rule to theme-w3, but double-safe here)
+      try{
+        const hdrMuted = document.querySelector('header .muted');
+        if(hdrMuted) hdrMuted.style.display = '';
+      }catch(e){}
+
+      window.scrollTo({top:0, behavior:'smooth'});
+    }catch(e){}
+  }
+
+  // Bind (and re-bind) our W1/W2 buttons with stopPropagation
+  function wireLeaveButtons(){
+    const b1 = document.getElementById('w3_go_w1');
+    const b2 = document.getElementById('w3_go_w2');
+    if(b1 && !b1._wired){
+      const handler = (e)=>{ e.preventDefault(); e.stopPropagation(); if(e.stopImmediatePropagation) e.stopImmediatePropagation(); goWorld('w1'); };
+      b1.addEventListener('click', handler);
+      b1.addEventListener('pointerdown', handler, {once:false});
+      b1._wired = true;
+    }
+    if(b2 && !b2._wired){
+      const handler = (e)=>{ e.preventDefault(); e.stopPropagation(); if(e.stopImmediatePropagation) e.stopImmediatePropagation(); goWorld('w2'); };
+      b2.addEventListener('click', handler);
+      b2.addEventListener('pointerdown', handler, {once:false});
+      b2._wired = true;
+    }
+  }
+
+  // Initial + delayed wire-ups
+  wireLeaveButtons();
+  setTimeout(wireLeaveButtons, 50);
+  setTimeout(wireLeaveButtons, 250);
+
+  // Also rewire on any click to Enter World 3 (after W3 UI is drawn)
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && (t.id==='enterW3' || /enter world 3/i.test(t.textContent||''))){
+      setTimeout(wireLeaveButtons, 100);
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
 
