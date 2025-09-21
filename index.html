@@ -18,6 +18,7 @@ crossorigin="anonymous"></script>
 body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);margin:0;color:#0f172a;transition:background 0.3s ease}
 body.theme-w1{--bg:#efe3d6;--header:#5c4033}
 body.theme-w2{--bg:#e6f4ff;--header:#0e4f8a}
+body.theme-w3{--bg:#0f1724;--header:#0a1320}
 header{display:flex;align-items:center;padding:12px 16px;background:var(--header);color:#fff;position:sticky;top:0;z-index:5}
 header h1{margin:0 12px 0 0;font-size:18px}
 main{display:flex;gap:12px;padding:18px;flex-wrap:wrap}
@@ -170,7 +171,8 @@ table.lb th{font-weight:700}
         <div class="small-muted">Catch Bag (sells for Coins)</div>
         <div id="catchBag" class="grid3" style="margin-top:6px"></div>
       
-<div id="w3Embed" class="hidden">
+      <!-- W3: combat embed -->
+      <div id="w3Embed" class="hidden">
         <h1>World 3 — Combat &amp; Prestige (Clean Rebuild)</h1>
 <div class="layout">
 <div>
@@ -190,6 +192,188 @@ table.lb th{font-weight:700}
 </div>
 </div>
 </div>
+<div class="card" style="margin-top:12px">
+<h3>Run Upgrades</h3>
+<div id="w3_runUpgrades"></div>
+</div>
+<div class="card" style="margin-top:12px">
+<h3>Prestige</h3>
+<div id="w3_prestigeArea"></div>
+</div>
+</div>
+<div>
+<div class="card">
+<h3>Floors &amp; Mobs</h3>
+<div id="w3_floorMobs"></div>
+<div id="w3_floorShop"></div>
+</div>
+<div class="card" style="margin-top:12px">
+<h3>Prestige Shop</h3>
+<div id="w3_prestigeShop"></div>
+</div>
+</div>
+</div>
+<script>
+const DEFAULT = {
+  hp:100, maxHp:100,
+  stamina:10, maxStamina:10,
+  staminaRegenMs:4000,
+  hpRegenRate:0,
+  weaponLevel:0,
+  precisionLevel:0,
+  trophies:0,
+  pp:0,
+  damageMult:1,
+  trophyMult:1,
+  prestigeBoostMaxStam:0,
+  prestigeBoostRegen:0,
+  prestigeBoostMaxHp:0,
+  prestigeBoostHpRegen:0,
+  runUpgrades:{},
+  currentMob:null,
+  maxFloor:1,
+  lastRegen:Date.now()
+};
+
+let state = Object.assign({}, DEFAULT);
+
+const BASE_MOBS = {
+  1:[{id:'slime',name:'Slime',hp:30,atk:2,reward:15},{id:'goblin',name:'Goblin',hp:90,atk:4,reward:35}],
+  2:[{id:'orc',name:'Orc',hp:250,atk:10,reward:120},{id:'troll',name:'Troll',hp:400,atk:16,reward:200}],
+  3:[{id:'wyvern',name:'Wyvern',hp:1000,atk:30,reward:700},{id:'demon',name:'Demon',hp:1700,atk:50,reward:1200}],
+  4:[{id:'dragon',name:'Dragon',hp:5000,atk:120,reward:5000},{id:'leviathan',name:'Leviathan',hp:9000,atk:200,reward:11000}]
+};
+
+// ---------- Rendering ----------
+function renderAll(){
+  document.getElementById('playerHp').textContent = state.hp;
+  document.getElementById('playerMaxHp').textContent = state.maxHp + (state.prestigeBoostMaxHp||0);
+  document.getElementById('playerStam').textContent = state.stamina;
+  document.getElementById('playerMaxStam').textContent = state.maxStamina + (state.prestigeBoostMaxStam||0);
+  document.getElementById('trophyCount').textContent = state.trophies;
+  document.getElementById('ppCount').textContent = state.pp;
+
+  renderMobBox();
+  renderRunUpgrades();
+  renderPrestigeArea();
+  renderFloors();
+  renderPrestigeShop();
+}
+
+function renderMobBox(){
+  const box=document.getElementById('mobBox');
+  if(state.currentMob){
+    box.innerHTML = state.currentMob.name+" HP:"+state.currentMob.hp;
+    document.getElementById('mobControls').innerHTML='<button onclick="flee()">Flee</button>';
+  } else {
+    let html='';
+    for(let f=1;f<=state.maxFloor;f++){
+      html += '<div>Floor '+f+': ';
+      (BASE_MOBS[f]||[]).forEach(m=>{
+        html += '<button onclick="enterMob('+f+',\''+m.id+'\')">'+m.name+'</button>';
+      });
+      html+='</div>';
+    }
+    box.innerHTML=html;
+    document.getElementById('mobControls').innerHTML='';
+  }
+}
+
+function renderRunUpgrades(){
+  const box=document.getElementById('runUpgrades'); box.innerHTML='';
+  function addBtn(name,cost,level,fn){
+    let b=document.createElement('button');
+    b.textContent=name+" Lv."+level+" (Cost "+cost+")";
+    b.disabled=state.trophies<cost;
+    b.onclick=()=>{ if(state.trophies<cost) return; state.trophies-=cost; fn(); renderAll(); };
+    box.appendChild(b);
+  }
+  addBtn("Sharper Sword",100*Math.pow(2,state.weaponLevel||0),state.weaponLevel||0,()=>{state.weaponLevel++;});
+  addBtn("Precision",100*Math.pow(2,state.precisionLevel||0),state.precisionLevel||0,()=>{state.precisionLevel++;});
+  addBtn("Max Stamina",150*Math.pow(2,state.runUpgrades.maxStam||0),state.runUpgrades.maxStam||0,()=>{state.runUpgrades.maxStam=(state.runUpgrades.maxStam||0)+1;state.maxStamina+=5;state.stamina+=5;});
+  addBtn("Stamina Regen",200*Math.pow(2,state.runUpgrades.regen||0),state.runUpgrades.regen||0,()=>{state.runUpgrades.regen=(state.runUpgrades.regen||0)+1;state.staminaRegenMs=Math.max(500,Math.floor(state.staminaRegenMs*0.85));});
+  addBtn("Max HP",200*Math.pow(2,state.runUpgrades.maxHp||0),state.runUpgrades.maxHp||0,()=>{state.runUpgrades.maxHp=(state.runUpgrades.maxHp||0)+1;state.maxHp+=20;state.hp+=20;});
+  addBtn("HP Regen",250*Math.pow(2,state.runUpgrades.hpRegen||0),state.runUpgrades.hpRegen||0,()=>{state.runUpgrades.hpRegen=(state.runUpgrades.hpRegen||0)+1;state.hpRegenRate=(state.hpRegenRate||0)+2;});
+}
+
+function renderPrestigeArea(){
+  const box=document.getElementById('prestigeArea'); box.innerHTML='';
+  const b=document.createElement('button');
+  b.textContent="Prestige (5000 trophies = 1 PP)";
+  b.disabled=state.trophies<5000;
+  b.onclick=()=>{let gain=Math.floor(state.trophies/5000);state.pp+=gain;state.trophies=0;state.weaponLevel=0;state.precisionLevel=0;state.runUpgrades={};state.hp=state.maxHp;state.stamina=state.maxStamina;state.currentMob=null;alert("Prestiged +"+gain+" PP");renderAll();};
+  box.appendChild(b);
+}
+
+function renderFloors(){
+  const box=document.getElementById('floorMobs'); box.innerHTML='';
+  for(let f=1;f<=state.maxFloor;f++){
+    box.innerHTML+='<div>Floor '+f+' has '+(BASE_MOBS[f]||[]).map(m=>m.name).join(', ')+'</div>';
+  }
+  const shop=document.getElementById('floorShop'); shop.innerHTML='';
+  let next=state.maxFloor+1; let cost=Math.pow(5,next-1);
+  let b=document.createElement('button');
+  b.textContent="Unlock Floor "+next+" (Cost "+cost+" PP)";
+  b.disabled=state.pp<cost;
+  b.onclick=()=>{if(state.pp<cost)return;state.pp-=cost;state.maxFloor++;renderAll();};
+  shop.appendChild(b);
+}
+
+function renderPrestigeShop(){
+  const box=document.getElementById('prestigeShop'); box.innerHTML='';
+  function addBtn(name,cost,desc,fn){
+    let b=document.createElement('button'); b.textContent=name+" (Cost "+cost+") "+desc; b.disabled=state.pp<cost; b.onclick=()=>{if(state.pp<cost)return;state.pp-=cost;fn();renderAll();}; box.appendChild(b);
+  }
+  addBtn("2x Damage",2,"x"+state.damageMult,()=>{state.damageMult*=2;});
+  addBtn("2x Trophies",2,"x"+state.trophyMult,()=>{state.trophyMult*=2;});
+  addBtn("+5 Max Stamina",3,"Owned "+state.prestigeBoostMaxStam,()=>{state.prestigeBoostMaxStam+=5;state.maxStamina+=5;state.stamina+=5;});
+  addBtn("+10% Stamina Regen",3,"Owned "+Math.round(state.prestigeBoostRegen*100)+"%",()=>{state.prestigeBoostRegen+=0.10;state.staminaRegenMs=Math.max(300,Math.floor(state.staminaRegenMs*0.9));});
+  addBtn("+20 Max HP",3,"Owned "+state.prestigeBoostMaxHp,()=>{state.prestigeBoostMaxHp+=20;state.maxHp+=20;state.hp+=20;});
+  addBtn("+2 HP Regen/5s",3,"Owned "+state.prestigeBoostHpRegen,()=>{state.prestigeBoostHpRegen+=2;});
+}
+
+// ---------- Combat ----------
+let miniActive=false, miniClicks=0, miniTimer=null;
+function enterMob(f,id){ state.currentMob=Object.assign({},(BASE_MOBS[f]||[]).find(x=>x.id==id)); renderAll(); }
+function flee(){ state.currentMob=null; renderAll(); }
+function startAttackPhase(){
+  if(!state.currentMob) return alert("Pick mob"); if(state.stamina<=0) return alert("No stamina");
+  state.stamina--; miniActive=true; miniClicks=0; let time=3;
+  document.getElementById('phaseInfo').style.display='block';
+  document.getElementById('miniTime').textContent=time; document.getElementById('miniClicks').textContent=0;
+  const btn=document.getElementById('attackBtn'); btn.textContent="Hit!"; btn.onclick=registerHit;
+  miniTimer=setInterval(()=>{time--; document.getElementById('miniTime').textContent=time; if(time<=0) endAttackPhase();},1000);
+}
+function registerHit(){ if(!miniActive)return; miniClicks++; document.getElementById('miniClicks').textContent=miniClicks; document.getElementById('progressBar').style.width=Math.min(100,(miniClicks/20)*100)+'%'; }
+function endAttackPhase(){
+  clearInterval(miniTimer); miniTimer=null; miniActive=false;
+  document.getElementById('phaseInfo').style.display='none'; document.getElementById('progressBar').style.width='0%';
+  const btn=document.getElementById('attackBtn'); btn.textContent="Attack"; btn.onclick=startAttackPhase;
+  if(!state.currentMob) return;
+  let base=5+(state.weaponLevel*3); let min=10+(state.precisionLevel*5); let max=min+10; let scaled=min+(miniClicks/20)*(max-min); if(scaled>max)scaled=max;
+  let dmg=(base+Math.floor(scaled))*(state.damageMult||1);
+  state.currentMob.hp-=Math.floor(dmg);
+  if(state.currentMob.hp<=0){ state.trophies+=Math.floor(state.currentMob.reward*(state.trophyMult||1)); state.currentMob=null; } else { state.hp-=state.currentMob.atk; if(state.hp<=0){ state.hp=state.maxHp; state.trophies=Math.max(0,Math.floor(state.trophies*0.9)); } }
+  renderAll();
+}
+
+// ---------- Regen ----------
+setInterval(()=>{
+  const now=Date.now();
+  // stamina regen
+  const regenMs=Math.max(300,Math.floor(state.staminaRegenMs*(1-(state.prestigeBoostRegen||0))));
+  if(now-(state.lastRegen||0)>=regenMs){ state.stamina=Math.min(state.maxStamina+(state.prestigeBoostMaxStam||0),state.stamina+1); state.lastRegen=now; }
+  // HP regen every 5s
+  if(((state.hpRegenRate||0)+(state.prestigeBoostHpRegen||0))>0 && now%5000<1000){
+    state.hp=Math.min(state.maxHp+(state.prestigeBoostMaxHp||0),state.hp+(state.hpRegenRate||0)+(state.prestigeBoostHpRegen||0));
+  }
+  renderAll();
+},1000);
+
+document.getElementById('attackBtn').onclick=startAttackPhase;
+renderAll();
+</script>
+      </div>
 </div>
 
       <div class="row hidden" id="frenzyRow" style="margin-top:8px">
@@ -319,26 +503,10 @@ table.lb th{font-weight:700}
 </main>
 
 <script type="module">
-// --- Safe Firebase Loader (keeps UI working if imports fail) ---
-let firebaseReady = false;
-let initializeApp, getFirestore;
-let collection, setDoc, updateDoc, doc, query, where, orderBy, limit, getDocs, serverTimestamp;
-try {
-  const appMod = await import("https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js");
-  const fsMod  = await import("https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js");
-  ({ initializeApp } = appMod);
-  ({ collection, setDoc, updateDoc, doc, query, where, orderBy, limit, getDocs, serverTimestamp, getFirestore } = fsMod);
-  firebaseReady = true;
-} catch (e) {
-  console.warn("[Offline] Firebase modules unavailable. Leaderboard disabled; game remains playable.", e);
-  initializeApp = () => ({});
-  getFirestore = () => null;
-  const noop = () => { throw new Error("Firestore offline"); };
-  collection = setDoc = updateDoc = doc = query = where = orderBy = limit = getDocs = serverTimestamp = noop;
-}
-// --- end loader ---
-
 // ---- Firebase (Auto, hard-coded) ----
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getFirestore, collection, setDoc, updateDoc, doc, query, where, orderBy, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyAqzfPRI279ayf4bEUiVkdyzg8mbxPBymM",
   authDomain: "resource-clicker-ff934.firebaseapp.com",
@@ -358,8 +526,6 @@ function normalizeName(name){ return (name||"").trim().toLowerCase(); }
 
 // Upsert: one row per name (case-insensitive). Only updates if new score is higher.
 async function submitOnlineUpsert(name, score){
-  if(!firebaseReady){ return {action:"noop"}; }
-
   const nameKey = normalizeName(name);
   const coll = collection(db, lbCollectionName());
   const q = query(coll, where("nameKey","==",nameKey), limit(1));
@@ -386,8 +552,6 @@ async function submitOnlineUpsert(name, score){
 }
 
 async function fetchTop(){
-  if(!firebaseReady){ return []; }
-
   const q = query(collection(db, lbCollectionName()), orderBy("score", "desc"), limit(50));
   const snap = await getDocs(q);
   const rows = [];
@@ -463,14 +627,15 @@ let meta={
     coinDouble:    { level: 0 }  // Coins x2
   },
 
-  worldsUnlocked: { w1:true, w2:false },
+  worldsUnlocked: { w1:true, w2:false, w3:false },
   activeWorld: 'w1'
 };
 
 // Per-world saves
 let worlds = {
   w1: newWorldState(),
-  w2: newWorldState()
+  w2: newWorldState(),
+  w3: {} // W3 state lives here (namespaced module)
 };
 
 function currentWorld(){ return worlds[meta.activeWorld]; }
@@ -548,11 +713,12 @@ setInterval(()=>{
       fishingCast(false, {ignoreStamina:true, silent:true});
     }
   }
+  try{ if(window.W3Module) window.W3Module.tick(); }catch(e){}
   updateAll();
 }, 1000);
 
 // Save/Load (global)
-function saveLocal(){ localStorage.setItem('rc_worlds_fishing_left_no_tab_save', JSON.stringify({meta,worlds})); }
+function saveLocal(){ try{ worlds.w3 = (window.W3Module ? window.W3Module.getState() : worlds.w3||{}); }catch(e){} localStorage.setItem('rc_worlds_fishing_left_no_tab_save', JSON.stringify({meta,worlds})); }
 function loadLocal(){
   try{
     const s = JSON.parse(localStorage.getItem('rc_worlds_fishing_left_no_tab_save')||'{}');
@@ -580,6 +746,8 @@ function loadLocal(){
         const rl = S.fishing.regenLevel || 0;
         S.fishing.regenMs = Math.max(330, 3500 - 200 * rl);
       });
+      // --- W3 hydrate ---
+      if(!worlds.w3) worlds.w3 = {};
     }
   }catch(e){}
 }
@@ -647,7 +815,7 @@ function updateResourceUI(){
 })();
 
 // Hide W1-only panels when in World 2, but don't override tab visibility in W1
-['panelShop','panelUnlocks','panelUnique','panelGarden'].forEach(id=>{
+['panelShop','panelUnlocks','panelUnique','panelGarden','panelPrestige'].forEach(id=>{
   const el = document.getElementById(id);
   if(!el) return;
   if (meta.activeWorld === 'w2') {
@@ -661,13 +829,16 @@ function updateResourceUI(){
   const w2Unlocked = !!meta.worldsUnlocked.w2;
   document.body.classList.toggle('theme-w1', meta.activeWorld==='w1');
   document.body.classList.toggle('theme-w2', meta.activeWorld==='w2');
+  document.body.classList.toggle('theme-w3', meta.activeWorld==='w3');
   const isW2 = meta.activeWorld==='w2';
+  const isW3 = meta.activeWorld==='w3';
 
-  const wn = document.getElementById('worldName'); if(wn) wn.textContent = isW2 ? 'World 2' : 'World 1';
-  const lt = document.getElementById('leftTitleText'); if(lt) lt.textContent = isW2 ? 'Fishing' : 'Click Panel';
-  document.getElementById('leftSub').textContent = isW2 ? 'Cast to earn Coins. Use coins to buy upgrades and unlocks in World 2.' : 'Click to gather. Use Unlocks to enable other resources.';
-  document.getElementById('resourceGrid').classList.toggle('hidden', isW2);
-  document.getElementById('fishingEmbed').classList.toggle('hidden', !isW2);
+  const wn = document.getElementById('worldName'); if(wn) wn.textContent = isW3 ? 'World 3' : (isW2 ? 'World 2' : 'World 1');
+  const lt = document.getElementById('leftTitleText'); if(lt) lt.textContent = isW3 ? 'Combat' : (isW2 ? 'Fishing' : 'Click Panel');
+  document.getElementById('leftSub').textContent = isW3 ? 'Fight mobs, earn trophies, and prestige.' : (isW2 ? 'Cast to earn Coins. Use coins to buy upgrades and unlocks in World 2.' : 'Click to gather. Use Unlocks to enable other resources.');
+  document.getElementById('resourceGrid').classList.toggle('hidden', isW2 or isW3);
+  document.getElementById('fishingEmbed').classList.toggle('hidden', !(isW2));
+  document.getElementById('w3Embed').classList.toggle('hidden', !(isW3));
 
   RES_LIST.forEach(r=>{
     const countEl = document.getElementById(r+'Count');
@@ -1117,7 +1288,31 @@ function renderWorlds(){
   // World 1
   const w1=document.createElement('div');
   w1.className='world-card';
-  w1.innerHTML = `<strong>World 1</strong> ${meta.activeWorld==='w1'?'<span class="tag">Current</span>':''}<br>
+  w1.innerHTML = `<strong>World 1</strong> ${meta.activeWorld==='w1'?'<span class="tag">Current</span>':''
+
+  // World 3
+  const w3=document.createElement('div');
+  w3.className='world-card';
+  const unlocked3 = !!meta.worldsUnlocked.w3;
+  w3.innerHTML = `<strong>World 3</strong> ${meta.activeWorld==='w3'?'<span class="tag">Current</span>':''}<br>
+  <span class="small-muted">${unlocked3?'Combat-focused world with trophies and its own prestige.':'Unlock for 2500 Prestige Points.'}</span><br>
+  ${unlocked3 ? (meta.activeWorld==='w3'?'':`<button class="small" id="enterW3">Enter World 3</button>`) : `<button class="small" id="buyW3">Unlock — 2500 PP</button>`}`;
+  box.appendChild(w3);
+  if(!unlocked3){
+    const btn=w3.querySelector('#buyW3');
+    btn.disabled = meta.prestigePoints < 2500;
+    btn.addEventListener('click', ()=>{
+      if(meta.prestigePoints < 2500) return;
+      meta.prestigePoints -= 2500;
+      meta.worldsUnlocked.w3 = true;
+      if(!worlds.w3) worlds.w3 = (window.W3Module ? window.W3Module.getState() : {});
+      renderWorlds(); updateAll(); saveLocal();
+    });
+  } else if(meta.activeWorld!=='w3'){
+    w3.querySelector('#enterW3').addEventListener('click', ()=>{ meta.activeWorld='w3'; renderAll(); updateAll(); saveLocal(); });
+  }
+
+}<br>
   <span class="small-muted">Standard progression (ignored after World 2 unlock). Brown theme.</span><br>
   ${meta.activeWorld==='w1'?'':`<button class="small" id="enterW1">Enter World 1</button>`}`;
   box.appendChild(w1);
@@ -1459,8 +1654,185 @@ function updateAll(){ updateResourceUI(); renderUnlocks(); renderUnique(); rende
 // Init
 bindClickButtons();
 loadLocal(); loadAchievements(); loadQuests();
+try{ if(window.W3Module){ window.W3Module.setState(worlds.w3||{}); window.W3Module.init(); } }catch(e){}
 renderAll(); updateAll();
 showPanel('shop');
+
+(function(){
+// --- W3 Namespaced Module ---
+
+const W3_DEFAULT = {
+  hp:100, maxHp:100,
+  stamina:10, maxStamina:10,
+  staminaRegenMs:4000,
+  hpRegenRate:0,
+  weaponLevel:0,
+  precisionLevel:0,
+  trophies:0,
+  pp:0,
+  damageMult:1,
+  trophyMult:1,
+  prestigeBoostMaxStam:0,
+  prestigeBoostRegen:0,
+  prestigeBoostMaxHp:0,
+  prestigeBoostHpRegen:0,
+  runUpgrades:{},
+  currentMob:null,
+  maxFloor:1,
+  lastRegen:Date.now()
+};
+
+let w3state = Object.assign({}, DEFAULT);
+
+const W3_BASE_MOBS = {
+  1:[{id:'slime',name:'Slime',hp:30,atk:2,reward:15},{id:'goblin',name:'Goblin',hp:90,atk:4,reward:35}],
+  2:[{id:'orc',name:'Orc',hp:250,atk:10,reward:120},{id:'troll',name:'Troll',hp:400,atk:16,reward:200}],
+  3:[{id:'wyvern',name:'Wyvern',hp:1000,atk:30,reward:700},{id:'demon',name:'Demon',hp:1700,atk:50,reward:1200}],
+  4:[{id:'dragon',name:'Dragon',hp:5000,atk:120,reward:5000},{id:'leviathan',name:'Leviathan',hp:9000,atk:200,reward:11000}]
+};
+
+// ---------- Rendering ----------
+function w3_renderAll(){
+  document.getElementById('w3_playerHp').textContent = w3state.hp;
+  document.getElementById('w3_playerMaxHp').textContent = w3state.maxHp + (w3state.prestigeBoostMaxHp||0);
+  document.getElementById('w3_playerStam').textContent = w3state.stamina;
+  document.getElementById('w3_playerMaxStam').textContent = w3state.maxStamina + (w3state.prestigeBoostMaxStam||0);
+  document.getElementById('w3_trophyCount').textContent = w3state.trophies;
+  document.getElementById('w3_ppCount').textContent = w3state.pp;
+
+  w3_renderMobBox();
+  w3_renderRunUpgrades();
+  w3_renderPrestigeArea();
+  w3_renderFloors();
+  w3_renderPrestigeShop();
+}
+
+function w3_renderMobBox(){
+  const box=document.getElementById('w3_mobBox');
+  if(w3state.currentMob){
+    box.innerHTML = w3state.currentMob.name+" HP:"+w3state.currentMob.hp;
+    document.getElementById('w3_mobControls').innerHTML='<button onclick="w3_flee()">Flee</button>';
+  } else {
+    let html='';
+    for(let f=1;f<=w3state.maxFloor;f++){
+      html += '<div>Floor '+f+': ';
+      (W3_BASE_MOBS[f]||[]).forEach(m=>{
+        html += '<button onclick="w3_enterMob('+f+',\''+m.id+'\')">'+m.name+'</button>';
+      });
+      html+='</div>';
+    }
+    box.innerHTML=html;
+    document.getElementById('w3_mobControls').innerHTML='';
+  }
+}
+
+function w3_renderRunUpgrades(){
+  const box=document.getElementById('w3_runUpgrades'); box.innerHTML='';
+  function addBtn(name,cost,level,fn){
+    let b=document.createElement('button');
+    b.textContent=name+" Lv."+level+" (Cost "+cost+")";
+    b.disabled=w3state.trophies<cost;
+    b.onclick=()=>{ if(w3state.trophies<cost) return; w3state.trophies-=cost; fn(); w3_renderAll(); };
+    box.appendChild(b);
+  }
+  addBtn("Sharper Sword",100*Math.pow(2,w3state.weaponLevel||0),w3state.weaponLevel||0,()=>{w3state.weaponLevel++;});
+  addBtn("Precision",100*Math.pow(2,w3state.precisionLevel||0),w3state.precisionLevel||0,()=>{w3state.precisionLevel++;});
+  addBtn("Max Stamina",150*Math.pow(2,w3state.runUpgrades.maxStam||0),w3state.runUpgrades.maxStam||0,()=>{w3state.runUpgrades.maxStam=(w3state.runUpgrades.maxStam||0)+1;w3state.maxStamina+=5;w3state.stamina+=5;});
+  addBtn("Stamina Regen",200*Math.pow(2,w3state.runUpgrades.regen||0),w3state.runUpgrades.regen||0,()=>{w3state.runUpgrades.regen=(w3state.runUpgrades.regen||0)+1;w3state.staminaRegenMs=Math.max(500,Math.floor(w3state.staminaRegenMs*0.85));});
+  addBtn("Max HP",200*Math.pow(2,w3state.runUpgrades.maxHp||0),w3state.runUpgrades.maxHp||0,()=>{w3state.runUpgrades.maxHp=(w3state.runUpgrades.maxHp||0)+1;w3state.maxHp+=20;w3state.hp+=20;});
+  addBtn("HP Regen",250*Math.pow(2,w3state.runUpgrades.hpRegen||0),w3state.runUpgrades.hpRegen||0,()=>{w3state.runUpgrades.hpRegen=(w3state.runUpgrades.hpRegen||0)+1;w3state.hpRegenRate=(w3state.hpRegenRate||0)+2;});
+}
+
+function w3_renderPrestigeArea(){
+  const box=document.getElementById('w3_prestigeArea'); box.innerHTML='';
+  const b=document.createElement('button');
+  b.textContent="Prestige (5000 trophies = 1 PP)";
+  b.disabled=w3state.trophies<5000;
+  b.onclick=()=>{let gain=Math.floor(w3state.trophies/5000);w3state.pp+=gain;w3state.trophies=0;w3state.weaponLevel=0;w3state.precisionLevel=0;w3state.runUpgrades={};w3state.hp=w3state.maxHp;w3state.stamina=w3state.maxStamina;w3state.currentMob=null;alert("Prestiged +"+gain+" PP");w3_renderAll();};
+  box.appendChild(b);
+}
+
+function w3_renderFloors(){
+  const box=document.getElementById('w3_floorMobs'); box.innerHTML='';
+  for(let f=1;f<=w3state.maxFloor;f++){
+    box.innerHTML+='<div>Floor '+f+' has '+(W3_BASE_MOBS[f]||[]).map(m=>m.name).join(', ')+'</div>';
+  }
+  const shop=document.getElementById('w3_floorShop'); shop.innerHTML='';
+  let next=w3state.maxFloor+1; let cost=Math.pow(5,next-1);
+  let b=document.createElement('button');
+  b.textContent="Unlock Floor "+next+" (Cost "+cost+" PP)";
+  b.disabled=w3state.pp<cost;
+  b.onclick=()=>{if(w3state.pp<cost)return;w3state.pp-=cost;w3state.maxFloor++;w3_renderAll();};
+  shop.appendChild(b);
+}
+
+function w3_renderPrestigeShop(){
+  const box=document.getElementById('w3_prestigeShop'); box.innerHTML='';
+  function addBtn(name,cost,desc,fn){
+    let b=document.createElement('button'); b.textContent=name+" (Cost "+cost+") "+desc; b.disabled=w3state.pp<cost; b.onclick=()=>{if(w3state.pp<cost)return;w3state.pp-=cost;fn();w3_renderAll();}; box.appendChild(b);
+  }
+  addBtn("2x Damage",2,"x"+w3state.damageMult,()=>{w3state.damageMult*=2;});
+  addBtn("2x Trophies",2,"x"+w3state.trophyMult,()=>{w3state.trophyMult*=2;});
+  addBtn("+5 Max Stamina",3,"Owned "+w3state.prestigeBoostMaxStam,()=>{w3state.prestigeBoostMaxStam+=5;w3state.maxStamina+=5;w3state.stamina+=5;});
+  addBtn("+10% Stamina Regen",3,"Owned "+Math.round(w3state.prestigeBoostRegen*100)+"%",()=>{w3state.prestigeBoostRegen+=0.10;w3state.staminaRegenMs=Math.max(300,Math.floor(w3state.staminaRegenMs*0.9));});
+  addBtn("+20 Max HP",3,"Owned "+w3state.prestigeBoostMaxHp,()=>{w3state.prestigeBoostMaxHp+=20;w3state.maxHp+=20;w3state.hp+=20;});
+  addBtn("+2 HP Regen/5s",3,"Owned "+w3state.prestigeBoostHpRegen,()=>{w3state.prestigeBoostHpRegen+=2;});
+}
+
+// ---------- Combat ----------
+let w3_miniActive=false, w3_miniClicks=0, w3_miniTimer=null;
+function w3_enterMob(f,id){ w3state.currentMob=Object.assign({},(W3_BASE_MOBS[f]||[]).find(x=>x.id==id)); w3_renderAll(); }
+function w3_flee(){ w3state.currentMob=null; w3_renderAll(); }
+function w3_startAttackPhase(){
+  if(!w3state.currentMob) return alert("Pick mob"); if(w3state.stamina<=0) return alert("No stamina");
+  w3state.stamina--; w3_miniActive=true; w3_miniClicks=0; let time=3;
+  document.getElementById('w3_phaseInfo').style.display='block';
+  document.getElementById('w3_miniTime').textContent=time; document.getElementById('w3_miniClicks').textContent=0;
+  const btn=document.getElementById('w3_attackBtn'); btn.textContent="Hit!"; btn.onclick=registerHit;
+  w3_miniTimer=setInterval(()=>{time--; document.getElementById('w3_miniTime').textContent=time; if(time<=0) w3_endAttackPhase();},1000);
+}
+function w3_registerHit(){ if(!w3_miniActive)return; w3_miniClicks++; document.getElementById('w3_miniClicks').textContent=w3_miniClicks; document.getElementById('w3_progressBar').style.width=Math.min(100,(w3_miniClicks/20)*100)+'%'; }
+function w3_endAttackPhase(){
+  clearInterval(w3_miniTimer); w3_miniTimer=null; w3_miniActive=false;
+  document.getElementById('w3_phaseInfo').style.display='none'; document.getElementById('w3_progressBar').style.width='0%';
+  const btn=document.getElementById('w3_attackBtn'); btn.textContent="Attack"; btn.onclick=startAttackPhase;
+  if(!w3state.currentMob) return;
+  let base=5+(w3state.weaponLevel*3); let min=10+(w3state.precisionLevel*5); let max=min+10; let scaled=min+(w3_miniClicks/20)*(max-min); if(scaled>max)scaled=max;
+  let dmg=(base+Math.floor(scaled))*(w3state.damageMult||1);
+  w3state.currentMob.hp-=Math.floor(dmg);
+  if(w3state.currentMob.hp<=0){ w3state.trophies+=Math.floor(w3state.currentMob.reward*(w3state.trophyMult||1)); w3state.currentMob=null; } else { w3state.hp-=w3state.currentMob.atk; if(w3state.hp<=0){ w3state.hp=w3state.maxHp; w3state.trophies=Math.max(0,Math.floor(w3state.trophies*0.9)); } }
+  w3_renderAll();
+}
+
+// ---------- Regen ----------
+setInterval(()=>{
+  const now=Date.now();
+  // stamina regen
+  const regenMs=Math.max(300,Math.floor(w3state.staminaRegenMs*(1-(w3state.prestigeBoostRegen||0))));
+  if(now-(w3state.lastRegen||0)>=regenMs){ w3state.stamina=Math.min(w3state.maxStamina+(w3state.prestigeBoostMaxStam||0),w3state.stamina+1); w3state.lastRegen=now; }
+  // HP regen every 5s
+  if(((w3state.hpRegenRate||0)+(w3state.prestigeBoostHpRegen||0))>0 && now%5000<1000){
+    w3state.hp=Math.min(w3state.maxHp+(w3state.prestigeBoostMaxHp||0),w3state.hp+(w3state.hpRegenRate||0)+(w3state.prestigeBoostHpRegen||0));
+  }
+  w3_renderAll();
+},1000);
+
+document.getElementById('w3_attackBtn').onclick=startAttackPhase;
+w3_renderAll();
+
+
+// State bridge to main save structure
+window.W3Module = {
+  getState: () => w3state,
+  setState: (s) => { w3state = Object.assign({}, W3_DEFAULT, s||{}); w3_renderAll(); },
+  init: () => {
+    document.getElementById('w3_attackBtn').onclick = w3_startAttackPhase;
+    w3_renderAll();
+  },
+  tick: () => w3_renderAll()
+};
+})();
+
 </script>
 </body>
 </html>
