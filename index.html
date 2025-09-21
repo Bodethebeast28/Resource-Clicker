@@ -3840,6 +3840,71 @@ body.theme-w3 #w3Full { display:block; }
 
 
 
+
+<style>
+/* Hide the W2 header blurb while in World 3 only */
+body.theme-w3 header .muted { display:none !important; }
+/* Centered "Worlds" mini-tab inside W3 */
+#w3_worldTabs { display:flex; justify-content:center; gap:8px; margin:10px 0; }
+#w3_worldTabs .w3-tab { padding:8px 12px; border-radius:8px; background:#166534; color:#ecfdf5; border:1px solid #14532d; cursor:pointer; }
+#w3_worldTabs .w3-tab:hover { filter:brightness(1.1); }
+</style>
+
+<script type="module">
+(function(){
+  const $ = (id)=>document.getElementById(id);
+
+  function ensureMidWorldTabs(){
+    const root = $('w3Full');
+    if(!root) return;
+    // Remove old top back-row if present
+    const old = $('w3_backRow'); if(old && old.parentNode) old.parentNode.removeChild(old);
+    if($('w3_worldTabs')) return;
+
+    const tabs = document.createElement('div');
+    tabs.id = 'w3_worldTabs';
+    tabs.innerHTML = `
+      <button class="w3-tab" id="w3_go_w1"><strong>World 1</strong></button>
+      <button class="w3-tab" id="w3_go_w2"><strong>World 2</strong></button>
+    `;
+
+    // Insert roughly in the middle: after the unlock row and before the grid
+    const after = root.querySelector('#w3_unlockFloor')?.closest('.row');
+    const grid  = root.querySelector('.w3-grid');
+    if(after && grid && grid.parentNode === root){
+      root.insertBefore(tabs, grid);
+    } else {
+      root.appendChild(tabs);
+    }
+
+    const leaveTo = (id)=>{
+      try{
+        document.body.classList.remove('theme-w3');
+        if(window.meta){
+          meta.activeWorld = id;
+          if(window.renderAll) renderAll();
+          if(window.updateAll) updateAll();
+          if(window.saveLocal) saveLocal();
+        }
+        window.scrollTo({top:0, behavior:'smooth'});
+      }catch(e){}
+    };
+
+    $('w3_go_w1').onclick = ()=> leaveTo('w1');
+    $('w3_go_w2').onclick = ()=> leaveTo('w2');
+  }
+
+  // Build when W3 is entered and on load (in case already there)
+  ensureMidWorldTabs();
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && (t.id==='enterW3' || /enter world 3/i.test(t.textContent||''))){
+      setTimeout(ensureMidWorldTabs, 80);
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
 
