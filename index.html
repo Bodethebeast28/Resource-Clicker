@@ -3842,3 +3842,93 @@ body.theme-w3 #w3Full { display:block; }
 
 </body>
 </html>
+
+<style>
+/* === Scope dark theme to World 3 only === */
+body:not(.theme-w3) { background: var(--bg) !important; color: #0f172a !important; }
+body:not(.theme-w3) header { background: var(--header) !important; color: #fff !important; }
+/* Restore light cards/panels when not in W3 */
+body:not(.theme-w3) .card { background: var(--card) !important; border-color: #e5e7eb !important; box-shadow: 0 6px 18px rgba(2,6,23,0.06) !important; }
+body:not(.theme-w3) .resource { background:#fff !important; border-color:#eee !important; }
+body:not(.theme-w3) .notice { background:#e0f2fe !important; color:#0c4a6e !important; border-color:#bae6fd !important; }
+body:not(.theme-w3) .warn { background:#fff7ed !important; color:#7c2d12 !important; border-color:#fed7aa !important; }
+body:not(.theme-w3) .small-muted, body:not(.theme-w3) .muted { color:#6b7280 !important; }
+body:not(.theme-w3) .stat, body:not(.theme-w3) h1, body:not(.theme-w3) h2, body:not(.theme-w3) h3, body:not(.theme-w3) h4, body:not(.theme-w3) h5, body:not(.theme-w3) h6 { color:#0f172a !important; }
+/* Buttons reset to original palette */
+body:not(.theme-w3) button, 
+body:not(.theme-w3) .upg { background: var(--accent) !important; color:#fff !important; border:none !important; }
+body:not(.theme-w3) button.green { background:#10b981 !important; }
+body:not(.theme-w3) .tab-btn { background:#111 !important; color:#fff !important; }
+body:not(.theme-w3) .tab-btn.active { background:#0b84ff !important; }
+body:not(.theme-w3) button:disabled, 
+body:not(.theme-w3) .upg:disabled { background:#cbd5e1 !important; color:#64748b !important; }
+/* Inputs back to light */
+body:not(.theme-w3) input[type="text"], 
+body:not(.theme-w3) textarea { background:#fff !important; color:#0f172a !important; border-color:#ddd !important; }
+/* Tables (light) */
+body:not(.theme-w3) table.lb th, 
+body:not(.theme-w3) table.lb td { border-color:#e5e7eb !important; color:#0f172a !important; }
+/* Progress bars (light-ish) */
+body:not(.theme-w3) progress::-webkit-progress-bar { background:#e5e7eb !important; }
+body:not(.theme-w3) progress::-webkit-progress-value { background:#0b84ff !important; }
+body:not(.theme-w3) progress::-moz-progress-bar { background:#0b84ff !important; }
+/* Tags/badges back to defaults */
+body:not(.theme-w3) .tag { background:#eef2ff !important; color:#3730a3 !important; }
+body:not(.theme-w3) .badge { background:#dcfce7 !important; color:#166534 !important; }
+body:not(.theme-w3) .coin { background:#fef9c3 !important; color:#854d0e !important; border-color:#fde68a !important; }
+</style>
+
+<script type="module">
+// === Add "Back to World 1/2" buttons inside W3 UI and wire them ===
+(function(){
+  const $ = (id)=>document.getElementById(id);
+
+  function ensureBackButtons(){
+    const root = document.getElementById('w3Full');
+    if(!root) return;
+    if(document.getElementById('w3_backRow')) return;
+
+    const backRow = document.createElement('div');
+    backRow.id = 'w3_backRow';
+    backRow.className = 'row';
+    backRow.style.marginTop = '6px';
+    backRow.innerHTML = `
+      <button id="w3_back_w1" class="upg" style="padding:6px 10px"><strong>⬅ Back to World 1</strong></button>
+      <button id="w3_back_w2" class="upg" style="padding:6px 10px"><strong>⬅ Back to World 2</strong></button>
+    `;
+
+    // Insert right under the title (after the first <h3> and subtitle)
+    const after = root.querySelector('h3')?.nextElementSibling;
+    if(after && after.parentNode){
+      after.parentNode.insertBefore(backRow, after.nextSibling);
+    } else {
+      root.prepend(backRow);
+    }
+
+    const leaveTo = (id)=>{
+      try{
+        document.body.classList.remove('theme-w3');
+        if(window.meta){
+          meta.activeWorld = id;
+          if(window.renderAll) renderAll();
+          if(window.updateAll) updateAll();
+          if(window.saveLocal) saveLocal();
+        }
+        window.scrollTo({top:0, behavior:'smooth'});
+      }catch(e){}
+    };
+
+    document.getElementById('w3_back_w1').onclick = ()=> leaveTo('w1');
+    document.getElementById('w3_back_w2').onclick = ()=> leaveTo('w2');
+  }
+
+  // Try now and whenever W3 is entered
+  ensureBackButtons();
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && (t.id==='enterW3' || /enter world 3/i.test(t.textContent||''))){
+      setTimeout(ensureBackButtons, 50);
+    }
+  });
+})();
+</script>
