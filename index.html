@@ -2,58 +2,7 @@
 <html lang="en">
 <head>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3316533323916018"
-crossorigin="anonymous">
-// ---- Multi-World Leaderboard Switch ----
-let currentWorld = 1;
-
-function switchLeaderboard(world) {
-  currentWorld = world;
-  const status = document.getElementById('lbStatus');
-  const tbody = document.getElementById('leaderboardRows');
-  tbody.innerHTML = '';
-  status.textContent = 'Loading World ' + world + ' leaderboard…';
-  renderLeaderboard();
-}
-
-// Override renderLeaderboard to handle both collections
-async function renderLeaderboard(){
-  const tbody = document.getElementById('leaderboardRows');
-  const status = document.getElementById('lbStatus');
-  status.textContent = 'Loading…';
-  try {
-    let list;
-    if (currentWorld === 1) {
-      const q = query(collection(db, LB_COLLECTION1), orderBy("score", "desc"), limit(50));
-      const snap = await getDocs(q);
-      list = snap.docs.map(d => ({
-        name: d.data().name,
-        score: d.data().score,
-        ts: d.data().ts?.toDate?.() || new Date()
-      }));
-    } else {
-      const q = query(collection(db, LB_COLLECTION2), orderBy("score", "desc"), limit(50));
-      const snap = await getDocs(q);
-      list = snap.docs.map(d => ({
-        name: d.data().name,
-        score: d.data().score,
-        ts: d.data().ts?.toDate?.() || new Date()
-      }));
-    }
-
-    tbody.innerHTML = '';
-    list.forEach((e, i) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i+1}</td><td>${e.name}</td><td class="right">${fmt(e.score)}</td><td>${e.ts.toLocaleString()}</td>`;
-      tbody.appendChild(tr);
-    });
-    status.textContent = `World ${currentWorld}: Showing top ${Math.min(50, list.length)} entries.`;
-  } catch (err) {
-    console.error("❌ Leaderboard fetch error:", err);
-    status.textContent = `Failed to load leaderboard (World ${currentWorld}): ${err.code || err.message}`;
-  }
-}
-
-</script>
+crossorigin="anonymous"></script>
 
 <meta charset="utf-8" />
 <title>Resource Clicker — W2 Fishing-in-Left (No Fishing Tab) + W2 Prestige Shop</title>
@@ -61,58 +10,7 @@ async function renderLeaderboard(){
 
 <!-- Google AdSense -->
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3316533323916018"
-  crossorigin="anonymous">
-// ---- Multi-World Leaderboard Switch ----
-let currentWorld = 1;
-
-function switchLeaderboard(world) {
-  currentWorld = world;
-  const status = document.getElementById('lbStatus');
-  const tbody = document.getElementById('leaderboardRows');
-  tbody.innerHTML = '';
-  status.textContent = 'Loading World ' + world + ' leaderboard…';
-  renderLeaderboard();
-}
-
-// Override renderLeaderboard to handle both collections
-async function renderLeaderboard(){
-  const tbody = document.getElementById('leaderboardRows');
-  const status = document.getElementById('lbStatus');
-  status.textContent = 'Loading…';
-  try {
-    let list;
-    if (currentWorld === 1) {
-      const q = query(collection(db, LB_COLLECTION1), orderBy("score", "desc"), limit(50));
-      const snap = await getDocs(q);
-      list = snap.docs.map(d => ({
-        name: d.data().name,
-        score: d.data().score,
-        ts: d.data().ts?.toDate?.() || new Date()
-      }));
-    } else {
-      const q = query(collection(db, LB_COLLECTION2), orderBy("score", "desc"), limit(50));
-      const snap = await getDocs(q);
-      list = snap.docs.map(d => ({
-        name: d.data().name,
-        score: d.data().score,
-        ts: d.data().ts?.toDate?.() || new Date()
-      }));
-    }
-
-    tbody.innerHTML = '';
-    list.forEach((e, i) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i+1}</td><td>${e.name}</td><td class="right">${fmt(e.score)}</td><td>${e.ts.toLocaleString()}</td>`;
-      tbody.appendChild(tr);
-    });
-    status.textContent = `World ${currentWorld}: Showing top ${Math.min(50, list.length)} entries.`;
-  } catch (err) {
-    console.error("❌ Leaderboard fetch error:", err);
-    status.textContent = `Failed to load leaderboard (World ${currentWorld}): ${err.code || err.message}`;
-  }
-}
-
-</script>
+  crossorigin="anonymous"></script>
 
 <style>
 :root{--bg:#f8fafc;--card:#fff;--muted:#6b7280;--accent:#0b84ff;--header:#0f172a}
@@ -271,7 +169,28 @@ table.lb th{font-weight:700}
         <hr class="sep" />
         <div class="small-muted">Catch Bag (sells for Coins)</div>
         <div id="catchBag" class="grid3" style="margin-top:6px"></div>
-      </div>
+      
+<div id="w3Embed" class="hidden">
+        <h1>World 3 — Combat &amp; Prestige (Clean Rebuild)</h1>
+<div class="layout">
+<div>
+<div class="card">
+<div>HP: <span id="w3_playerHp"></span> / <span id="w3_playerMaxHp"></span></div>
+<div>Stamina: <span id="w3_playerStam"></span> / <span id="w3_playerMaxStam"></span></div>
+<div>Trophies: <span id="w3_trophyCount"></span></div>
+<div>Prestige Points: <span id="w3_ppCount"></span></div>
+<hr/>
+<div id="w3_mobBox">No mob selected</div>
+<div id="w3_mobControls"></div>
+<div style="margin-top:8px">
+<button class="small red" id="w3_attackBtn">Attack</button>
+<div id="w3_phaseInfo" style="display:none;margin-top:6px">
+<div class="muted">Time left: <span id="w3_miniTime"></span>s • Clicks: <span id="w3_miniClicks"></span></div>
+<div class="progress"><div class="bar" id="w3_progressBar"></div></div>
+</div>
+</div>
+</div>
+</div>
 
       <div class="row hidden" id="frenzyRow" style="margin-top:8px">
         <button id="frenzyBtn" class="small">Activate Frenzy</button>
@@ -400,10 +319,26 @@ table.lb th{font-weight:700}
 </main>
 
 <script type="module">
-// ---- Firebase (Auto, hard-coded) ----
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getFirestore, collection, setDoc, updateDoc, doc, query, where, orderBy, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+// --- Safe Firebase Loader (keeps UI working if imports fail) ---
+let firebaseReady = false;
+let initializeApp, getFirestore;
+let collection, setDoc, updateDoc, doc, query, where, orderBy, limit, getDocs, serverTimestamp;
+try {
+  const appMod = await import("https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js");
+  const fsMod  = await import("https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js");
+  ({ initializeApp } = appMod);
+  ({ collection, setDoc, updateDoc, doc, query, where, orderBy, limit, getDocs, serverTimestamp, getFirestore } = fsMod);
+  firebaseReady = true;
+} catch (e) {
+  console.warn("[Offline] Firebase modules unavailable. Leaderboard disabled; game remains playable.", e);
+  initializeApp = () => ({});
+  getFirestore = () => null;
+  const noop = () => { throw new Error("Firestore offline"); };
+  collection = setDoc = updateDoc = doc = query = where = orderBy = limit = getDocs = serverTimestamp = noop;
+}
+// --- end loader ---
 
+// ---- Firebase (Auto, hard-coded) ----
 const firebaseConfig = {
   apiKey: "AIzaSyAqzfPRI279ayf4bEUiVkdyzg8mbxPBymM",
   authDomain: "resource-clicker-ff934.firebaseapp.com",
@@ -415,8 +350,7 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const LB_COLLECTION1 = "leaderboard";
-const LB_COLLECTION2 = LB_COLLECTION2;
+const LB_COLLECTION = "leaderboard";
 
 
 function lbCollectionName(){ try { return (meta && meta.activeWorld==='w2') ? (LB_COLLECTION + '_w2') : (LB_COLLECTION + '_w1'); } catch(e) { return LB_COLLECTION + '_w1'; } }
@@ -424,6 +358,8 @@ function normalizeName(name){ return (name||"").trim().toLowerCase(); }
 
 // Upsert: one row per name (case-insensitive). Only updates if new score is higher.
 async function submitOnlineUpsert(name, score){
+  if(!firebaseReady){ return {action:"noop"}; }
+
   const nameKey = normalizeName(name);
   const coll = collection(db, lbCollectionName());
   const q = query(coll, where("nameKey","==",nameKey), limit(1));
@@ -450,6 +386,8 @@ async function submitOnlineUpsert(name, score){
 }
 
 async function fetchTop(){
+  if(!firebaseReady){ return []; }
+
   const q = query(collection(db, lbCollectionName()), orderBy("score", "desc"), limit(50));
   const snap = await getDocs(q);
   const rows = [];
@@ -1523,57 +1461,6 @@ bindClickButtons();
 loadLocal(); loadAchievements(); loadQuests();
 renderAll(); updateAll();
 showPanel('shop');
-
-// ---- Multi-World Leaderboard Switch ----
-let currentWorld = 1;
-
-function switchLeaderboard(world) {
-  currentWorld = world;
-  const status = document.getElementById('lbStatus');
-  const tbody = document.getElementById('leaderboardRows');
-  tbody.innerHTML = '';
-  status.textContent = 'Loading World ' + world + ' leaderboard…';
-  renderLeaderboard();
-}
-
-// Override renderLeaderboard to handle both collections
-async function renderLeaderboard(){
-  const tbody = document.getElementById('leaderboardRows');
-  const status = document.getElementById('lbStatus');
-  status.textContent = 'Loading…';
-  try {
-    let list;
-    if (currentWorld === 1) {
-      const q = query(collection(db, LB_COLLECTION1), orderBy("score", "desc"), limit(50));
-      const snap = await getDocs(q);
-      list = snap.docs.map(d => ({
-        name: d.data().name,
-        score: d.data().score,
-        ts: d.data().ts?.toDate?.() || new Date()
-      }));
-    } else {
-      const q = query(collection(db, LB_COLLECTION2), orderBy("score", "desc"), limit(50));
-      const snap = await getDocs(q);
-      list = snap.docs.map(d => ({
-        name: d.data().name,
-        score: d.data().score,
-        ts: d.data().ts?.toDate?.() || new Date()
-      }));
-    }
-
-    tbody.innerHTML = '';
-    list.forEach((e, i) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i+1}</td><td>${e.name}</td><td class="right">${fmt(e.score)}</td><td>${e.ts.toLocaleString()}</td>`;
-      tbody.appendChild(tr);
-    });
-    status.textContent = `World ${currentWorld}: Showing top ${Math.min(50, list.length)} entries.`;
-  } catch (err) {
-    console.error("❌ Leaderboard fetch error:", err);
-    status.textContent = `Failed to load leaderboard (World ${currentWorld}): ${err.code || err.message}`;
-  }
-}
-
 </script>
 </body>
 </html>
