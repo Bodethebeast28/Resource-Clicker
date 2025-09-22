@@ -4289,6 +4289,247 @@ body.theme-w3 header .muted { display:none !important; }
 })();
 </script>
 <!-- === End Stability Fix Patch === -->
+
+<!-- === Robust Guard + Adaptive Auto Attack/Stats Patch (v4) === -->
+<script>
+(() => {
+  if (window.__w3RobustPatch) return;
+  window.__w3RobustPatch = true;
+
+  // ------------------ Utilities ------------------
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n||0).toLocaleString();
+
+  // Safe queue microtask
+  const asap = (fn) => setTimeout(fn, 0);
+
+  // ------------------ World Switch Guard ------------------
+  // Intercept meta.activeWorld changes unless they come from an allowed UI action.
+  (function guardWorldSwitch(){
+    const _meta = window.meta || (window.meta = {activeWorld:'w1'});
+    if (_meta.__guarded) return;
+
+    let allowSwitch = false;
+    function markAllowed(){ allowSwitch = true; asap(()=> allowSwitch = false); }
+
+    // Treat clicks on explicit world UI as allowed; everything else as disallowed (W1/W3).
+    document.addEventListener('click', (ev) => {
+      try{
+        const t = ev.target;
+        const ok =
+          (t && (t.id === 'enterW1' || t.id === 'enterW2' || t.id === 'enterW3')) ||
+          (t && t.closest && t.closest('#enterW1, #enterW2, #enterW3, #worldsBox, .world-card')) ||
+          (t && t.dataset && (t.dataset.world === 'w1' || t.dataset.world === 'w2' || t.dataset.world === 'w3'));
+        if(ok) markAllowed();
+      }catch(_){}
+    }, true);
+
+    // Wrap meta in a Proxy-like defineProperty for activeWorld
+    let _active = _meta.activeWorld || 'w1';
+    try{
+      Object.defineProperty(_meta, 'activeWorld', {
+        get(){ return _active; },
+        set(v){
+          // If not allowed and switching to w3 from a generic click, block
+          if(!allowSwitch && (v === 'w3' || _active !== v)){
+            // Block unintended flip; just return silently
+            return;
+          }
+          _active = v;
+        },
+        configurable: true
+      });
+    }catch(_){ /* environments that disallow defineProperty on meta */ }
+
+    _meta.__guarded = true;
+  })();
+
+  // ------------------ Adaptive State Discovery ------------------
+  function findW3State(){
+    // Priority 1: explicit module
+    if (window.W3Module && typeof window.W3Module.getState === 'function' && typeof window.W3Module.setState === 'function') {
+      return {
+        type: 'module',
+        get(){ return window.W3Module.getState(); },
+        set(s){ window.W3Module.setState(s); }
+      };
+    }
+    // Priority 2: worlds.w3 common layout
+    if (window.worlds && window.worlds.w3){
+      return {
+        type: 'worlds',
+        get(){ return window.worlds.w3; },
+        set(s){ window.worlds.w3 = s; }
+      };
+    }
+    // Priority 3: flat global
+    if (window.w3){
+      return { type: 'flat', get(){ return window.w3; }, set(s){ window.w3 = s; } };
+    }
+    // Fallback: our own shadow state (non-invasive)
+    if(!window.__w3Shadow){
+      window.__w3Shadow = {
+        trophies: 0,
+        currentMob: {name:'Slime', level:1, hp:50, maxHp:50, reward:1},
+        autoAtkLevel: 0,
+        stamina: 10,
+        maxStamina: 10,
+        staminaRegenMs: 4000,
+        prestigeBoostRegen: 0,
+        weaponLevel: 0,
+        precisionLevel: 0,
+        damageMult: 1
+      };
+    }
+    return { type:'shadow', get(){ return window.__w3Shadow; }, set(s){ window.__w3Shadow = s; } };
+  }
+
+  // Locate trophies field holder (could be nested elsewhere)
+  function getTrophiesRef(state){
+    // Prefer local state
+    if (state.trophies != null) return ['local', state];
+    // Search window.* shallowly for trophies numeric field
+    try{
+      for (const k in window){
+        const v = window[k];
+        if (v && typeof v === 'object' && v !== window && v.trophies != null) {
+          return [k, v];
+        }
+      }
+    }catch(_){}
+    // Default to local
+    return ['local', state];
+  }
+
+  // Compute click damage baseline for quartering
+  function estimateClickDamage(s){
+    const base  = 5 + (Number(s.weaponLevel)||0) * 3;
+    const min   = 10 + (Number(s.precisionLevel)||0) * 5;
+    const avgScaled = min + 5;
+    const mult  = Number(s.damageMult)||1;
+    return Math.max(1, Math.floor((base + Math.floor(avgScaled)) * mult));
+  }
+
+  function autoCost(level){ return Math.max(1, Math.floor(10 * Math.pow(1.7, Number(level)||0))); }
+  function autoIntervalMs(level){ const start=5000, step=300, min=330; return Math.max(min, start - step*(Number(level)||0)); }
+
+  // ------------------ UI Mount (idempotent) ------------------
+  function mountUI(){
+    if ($('w3_autoCard')) return; // already mounted
+    const host =
+      $('w3CombatEmbed') ||
+      $('panelLeft') ||
+      $('leftPanel') ||
+      document.body;
+    const card = document.createElement('div');
+    card.id = 'w3_autoCard';
+    card.className = 'card';
+    card.style.marginTop = '8px';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <div><strong>Auto Attack (W3)</strong></div>
+          <div class="muted">Auto-hits current mob without using stamina.</div>
+          <div class="small-muted">Damage: <span id="w3_autoDmg">—</span> (¼ of click)</div>
+          <div class="small-muted">Interval: <span id="w3_autoInt">—</span> (min 0.33s) • Level: <span id="w3_autoLvl">0</span></div>
+        </div>
+        <div>
+          <button id="w3_buyAuto" class="upg"><strong id="w3_autoCost">Buy — 10 🏆</strong></button>
+        </div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">
+        <div class="small-muted">Regen speed: <strong id="w3_regenSpeed">—</strong> / tick</div>
+        <div class="small-muted">Power: <strong id="w3_powerVal">—</strong></div>
+      </div>
+    `;
+    host.appendChild(card);
+
+    // Click: Buy
+    card.addEventListener('click', (e)=>{
+      if(!(e.target && (e.target.id === 'w3_buyAuto' || e.target.id === 'w3_autoCost'))) return;
+      const adapter = findW3State();
+      const s = adapter.get() || {};
+      if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+
+      // Find trophies holder
+      const [_, tref] = getTrophiesRef(s);
+      const cost = autoCost(s.autoAtkLevel);
+      if (Number(tref.trophies||0) < cost) { return; }
+      tref.trophies = Number(tref.trophies||0) - cost;
+      s.autoAtkLevel += 1;
+      if(!s._autoLast) s._autoLast = Date.now();
+      adapter.set(s);
+      render();
+    }, true);
+  }
+
+  // ------------------ Render ------------------
+  function render(){
+    const adapter = findW3State();
+    const s = adapter.get() || {};
+    // Regen speed
+    const regenMs = Math.max(300, Math.floor((Number(s.staminaRegenMs)||4000) * (1 - (Number(s.prestigeBoostRegen)||0))));
+    const regenEl = $('w3_regenSpeed'); if (regenEl) regenEl.textContent = (regenMs/1000).toFixed(2) + 's';
+    // Power (baseline click)
+    const power = estimateClickDamage(s);
+    const powerEl = $('w3_powerVal'); if (powerEl) powerEl.textContent = fmt(power);
+    // Auto stats
+    const lvl = Number(s.autoAtkLevel||0);
+    const intMs = autoIntervalMs(lvl);
+    const dmg = Math.max(1, Math.floor(power/4));
+    const lvlEl = $('w3_autoLvl'); if (lvlEl) lvlEl.textContent = fmt(lvl);
+    const intEl = $('w3_autoInt'); if (intEl) intEl.textContent = (intMs/1000).toFixed(2) + 's';
+    const dmgEl = $('w3_autoDmg'); if (dmgEl) dmgEl.textContent = fmt(dmg);
+    const costEl = $('w3_autoCost'); if (costEl) costEl.textContent = 'Buy — ' + fmt(autoCost(lvl)) + ' 🏆';
+  }
+
+  // ------------------ Auto Attack Engine ------------------
+  function autoLoop(){
+    try{
+      const adapter = findW3State();
+      const s = adapter.get(); if(!s) return;
+      if (Number(s.autoAtkLevel||0) <= 0) return;
+      if ((window.meta && window.meta.activeWorld) !== 'w3') return; // only in W3
+
+      const now = Date.now();
+      const need = autoIntervalMs(Number(s.autoAtkLevel||0));
+      if(!s._autoLast) s._autoLast = now;
+      if(now - s._autoLast < need) return;
+      s._autoLast = now;
+
+      if(!s.currentMob || !s.currentMob.hp || s.currentMob.hp <= 0) return;
+      const dmg = Math.max(1, Math.floor(estimateClickDamage(s)/4));
+      s.currentMob.hp = Math.max(0, Math.floor(s.currentMob.hp - dmg));
+
+      if(s.currentMob.hp <= 0){
+        // Award trophies if field exists
+        if(s.currentMob.reward != null){
+          const mult = Number(s.trophyMult)||1;
+          const [_, tref] = getTrophiesRef(s);
+          tref.trophies = Number(tref.trophies||0) + Math.floor((s.currentMob.reward||0)*mult);
+        }
+        // Respawn at max HP (non-invasive)
+        s.currentMob.hp = s.currentMob.maxHp || 50;
+      }
+      adapter.set(s);
+      render();
+    }catch(_){}
+  }
+
+  // ------------------ Init ------------------
+  function init(){
+    mountUI();
+    render();
+  }
+
+  if (document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
+
+  setInterval(render, 1000);
+  setInterval(autoLoop, 100);
+})();
+</script>
+<!-- === End Robust Patch v4 === -->
 </body>
 </html>
 
