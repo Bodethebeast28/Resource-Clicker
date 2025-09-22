@@ -5320,3 +5320,196 @@ body:not(.theme-w3) .coin { background:#fef9c3 !important; color:#854d0e !import
 })();
 </script>
 <!-- === End v13 Minimal Patch === -->
+<!-- === W3 UI Restorer & Safe Binder (v16) === -->
+<script>
+(() => {
+  if (window.__w3_ui_restorer_v16) return;
+  window.__w3_ui_restorer_v16 = true;
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n)=> Number(n||0).toLocaleString();
+
+  function buildMarkup(){
+    const div = document.createElement('div');
+    div.innerHTML = `
+<div id="w3Embed" class="card">
+  <div id="w3_mobBox" class="card" style="margin-bottom:8px">
+    <div class="small-muted">HP: <strong><span id="w3_hp">0</span>/<span id="w3_hpmax">0</span></strong></div>
+    <progress id="w3_hpbar" value="0" max="100" style="width:100%"></progress>
+    <div class="small-info">Stamina: <strong><span id="w3_stam">0</span>/<span id="w3_stammax">0</span></strong></div>
+    <div class="small-info">Trophies: <strong id="w3_trophies">0</strong></div>
+  </div>
+
+  <div class="row" style="gap:8px;margin-bottom:8px">
+    <button id="w3_attack" class="upg" style="text-align:center">Attack ⚔️</button>
+    <button id="w3_flee" class="upg" style="text-align:center">Flee 🏃</button>
+    <button id="w3_dungeonBtn" class="upg" style="text-align:center">New Dungeon ⛓️</button>
+  </div>
+
+  <div class="card" id="w3Shop">
+    <div class="grid2">
+      <button id="w3_upg_power" class="upg">
+        <div class="title">Power</div>
+        <div class="muted">Increase damage per hit</div>
+        <div id="w3_cost_power" class="cost">Cost: —</div>
+      </button>
+      <button id="w3_upg_stamina" class="upg">
+        <div class="title">Max Stamina</div>
+        <div class="muted">+2 max stamina</div>
+        <div id="w3_cost_stamina" class="cost">Cost: —</div>
+      </button>
+      <button id="w3_upg_regen" class="upg">
+        <div class="title">Regen Speed</div>
+        <div class="muted">-200 ms per upgrade (min 400 ms)</div>
+        <div id="w3_cost_regen" class="cost">Cost: —</div>
+      </button>
+      <button id="w3_upg_hp" class="upg">
+        <div class="title">Max HP</div>
+        <div class="muted">+10 max HP</div>
+        <div id="w3_cost_hp" class="cost">Cost: —</div>
+      </button>
+    </div>
+  </div>
+
+  <div class="row" style="gap:8px;margin-top:8px">
+    <button id="w3_prevFloor" class="small">Prev Floor</button>
+    <button id="w3_unlockFloor" class="small">Unlock Next Floor</button>
+    <button id="w3_nextFloor" class="small">Next Floor</button>
+    <div class="small-info">Floor <strong id="w3_floor">1</strong> / <strong id="w3_floorMax">1</strong></div>
+    <div class="small-muted" id="w3_floorInfo">Floor 1</div>
+  </div>
+</div>`;
+    return div.firstElementChild;
+  }
+
+  // Replace/augment ensureW3 so it guarantees the markup exists
+  (function patchEnsureW3(){
+    const orig = window.ensureW3;
+    window.ensureW3 = function(){
+      // If original returns a node that contains our required elements, use it
+      try{
+        if (typeof orig === 'function'){
+          const node = orig();
+          if (node && node.querySelector && node.querySelector('#w3_attack') && node.querySelector('#w3_upg_power')) return node;
+        }
+      }catch(_){}
+      // Build if missing
+      let host = document.getElementById('panelLeft') || document.body;
+      const marker = $('leftSub');
+      let node = $('w3Embed');
+      if (!node){
+        node = buildMarkup();
+        if (marker && marker.parentNode) marker.parentNode.insertBefore(node, marker.nextSibling);
+        else host.appendChild(node);
+      }
+      return node;
+    };
+  })();
+
+  // Bind handlers only if not already set
+  function ensureBindings(){
+    const el = window.ensureW3(); if(!el) return;
+    const W3 = window.W3 || window.w3 || window.w3state || {};
+
+    // Attack / Flee
+    const atk = el.querySelector('#w3_attack');
+    if (atk && !atk._bound){
+      atk.addEventListener('click', ()=> { if (typeof window.attack==='function'){ window.attack(); } }, false);
+      atk._bound = true;
+    }
+    const flee = el.querySelector('#w3_flee');
+    if (flee && !flee._bound){
+      flee.addEventListener('click', ()=> { if (typeof window.flee==='function'){ window.flee(); } }, false);
+      flee._bound = true;
+    }
+
+    // Upgrades
+    const buy = window.buy;
+    const btnP = el.querySelector('#w3_upg_power');
+    if (btnP && !btnP._bound && typeof buy==='function'){
+      btnP.addEventListener('click', ()=> buy(5 + (W3.power||0), ()=> { W3.power = (W3.power||0) + 2; }), false);
+      btnP._bound = true;
+    }
+    const btnS = el.querySelector('#w3_upg_stamina');
+    if (btnS && !btnS._bound && typeof buy==='function'){
+      btnS.addEventListener('click', ()=> buy(6 + Math.floor(((W3.stamMax||10)-10)/2)*2, ()=> { W3.stamMax = (W3.stamMax||10) + 2; }), false);
+      btnS._bound = true;
+    }
+    const btnR = el.querySelector('#w3_upg_regen');
+    if (btnR && !btnR._bound && typeof buy==='function'){
+      btnR.addEventListener('click', ()=> buy(Math.max(8 - Math.floor((1600 - (W3.regenMs||4000))/200), 4), ()=> { W3.regenMs = Math.max(400, (W3.regenMs||4000) - 200); }), false);
+      btnR._bound = true;
+    }
+    const btnH = el.querySelector('#w3_upg_hp');
+    if (btnH && !btnH._bound && typeof buy==='function'){
+      btnH.addEventListener('click', ()=> buy(7 + Math.floor(((W3.hpMax||60)-60)/10)*3, ()=> { W3.hpMax = (W3.hpMax||60) + 10; }), false);
+      btnH._bound = true;
+    }
+
+    // Floor nav
+    const prev = el.querySelector('#w3_prevFloor');
+    if (prev && !prev._bound){
+      prev.addEventListener('click', ()=> {
+        if (typeof window.setMob==='function' && W3.currentFloor>1){ W3.currentFloor--; window.setMob(0); if (typeof window.render==='function') window.render(); }
+      }, false);
+      prev._bound = true;
+    }
+    const next = el.querySelector('#w3_nextFloor');
+    if (next && !next._bound){
+      next.addEventListener('click', ()=> {
+        if (typeof window.setMob==='function' && W3.currentFloor < W3.unlockedFloors){ W3.currentFloor++; window.setMob(0); if (typeof window.render==='function') window.render(); }
+      }, false);
+      next._bound = true;
+    }
+    const unl = el.querySelector('#w3_unlockFloor');
+    if (unl && !unl._bound){
+      unl.addEventListener('click', ()=> { if (typeof window.unlockNextFloor==='function'){ window.unlockNextFloor(); } }, false);
+      unl._bound = true;
+    }
+
+    // Dungeon button (placeholder call if game has a function)
+    const dun = el.querySelector('#w3_dungeonBtn');
+    if (dun && !dun._bound){
+      dun.addEventListener('click', ()=> {
+        if (typeof window.enterDungeon === 'function') window.enterDungeon();
+        else alert('Dungeon coming soon');
+      }, false);
+      dun._bound = true;
+    }
+  }
+
+  // Show the W3 panel when in W3
+  function syncVisibility(){
+    const isW3 = (window.meta && window.meta.activeWorld) === 'w3';
+    const el = $('w3Embed');
+    if (!el) return;
+    if (isW3){
+      el.classList.remove('hidden');
+      el.style.display = 'block';
+      el.style.pointerEvents = 'auto';
+    } else {
+      el.classList.add('hidden');
+      el.style.display = 'none';
+      el.style.pointerEvents = 'none';
+    }
+  }
+
+  // Hook native renders to keep UI visible and bound
+  const _renderWorlds = window.renderWorlds;
+  if (typeof _renderWorlds === 'function'){
+    window.renderWorlds = function(){
+      const out = _renderWorlds.apply(this, arguments);
+      try { window.ensureW3(); ensureBindings(); syncVisibility(); } catch(_){}
+      return out;
+    };
+  }
+
+  // Initial boot & timers
+  function boot(){ try { window.ensureW3(); ensureBindings(); syncVisibility(); } catch(_){} }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+
+  setInterval(()=>{ try { ensureBindings(); syncVisibility(); } catch(_){ } }, 600);
+})();
+</script>
+<!-- === End v16 patch === -->
