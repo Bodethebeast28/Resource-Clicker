@@ -3176,7 +3176,7 @@ const DEFAULT_DUP_IGNORED = {
 
 let W3_ALT_1 = Object.assign({}, DEFAULT);
 
-const BASE_MOBS = {
+const BASE_MOBS_ALT_3178 = {
   1:[{id:'slime',name:'Slime',hp:30,atk:2,reward:15},{id:'goblin',name:'Goblin',hp:90,atk:4,reward:35}],
   2:[{id:'orc',name:'Orc',hp:250,atk:10,reward:120},{id:'troll',name:'Troll',hp:400,atk:16,reward:200}],
   3:[{id:'wyvern',name:'Wyvern',hp:1000,atk:30,reward:700},{id:'demon',name:'Demon',hp:1700,atk:50,reward:1200}],
@@ -3644,7 +3644,7 @@ body.theme-w3 #w3Full { display:block; }
   }
 
   // Base mobs (expanded and sorted by HP asc for 6 floors / 12 mobs total)
-  const BASE_MOBS = [
+  const BASE_MOBS_ALT_3646 = [
     {name:'Slime', hp:30, reward:3},
     {name:'Blue Slime', hp:40, reward:4},
     {name:'Wolf', hp:50, reward:5},
@@ -3722,8 +3722,8 @@ body.theme-w3 #w3Full { display:block; }
     // Player
     $('w3_hp').textContent = W3.hp;
     $('w3_hpmax').textContent = W3.hpMax;
-    $('w3_hpbar').max = W3.hpMax;
-    $('w3_hpbar').value = W3.hp;
+    { let _m = Number(W3.hpMax); if(!isFinite(_m) || _m<=0) _m = 1; $('w3_hpbar').max = _m; }
+    { let _v = Number(W3.hp); if(!isFinite(_v) || _v<0) _v = 0; $('w3_hpbar').value = _v; }
 
     $('w3_stam').textContent = W3.stam;
     $('w3_stammax').textContent = W3.stamMax;
