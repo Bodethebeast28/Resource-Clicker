@@ -4021,6 +4021,185 @@ body.theme-w3 header .muted { display:none !important; }
 })();
 </script>
 
+
+<!-- === W3 Auto Attack + Regen/Power Stats Patch (non-destructive) === -->
+<script>
+(() => {
+  if (window.__w3AutoPatchApplied) return;
+  window.__w3AutoPatchApplied = true;
+
+  // Helpers
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n||0).toLocaleString();
+
+  // Compute estimated "normal" click damage used for auto-attack quartering
+  function w3_estimatedClickDamage(w3){
+    if(!w3) return 0;
+    // Mirror the core combat math (approximate average mini-game result)
+    const base = 5 + (Number(w3.weaponLevel)||0) * 3;             // matches core: base = 5 + weaponLevel*3
+    const min  = 10 + (Number(w3.precisionLevel)||0) * 5;         // matches core: min = 10 + precisionLevel*5
+    const avgScaled = min + 5;                                     // average between [min, min+10]
+    const mult = Number(w3.damageMult)||1;
+    return Math.floor((base + Math.floor(avgScaled)) * mult);
+  }
+
+  function w3_autoCost(level){
+    return Math.max(1, Math.floor(10 * Math.pow(1.7, Number(level)||0)));
+  }
+  function w3_autoIntervalMs(level){
+    const start = 5000, step = 300, minMs = 330;
+    return Math.max(minMs, start - step * (Number(level)||0));
+  }
+  function ensureW3(){
+    // Try common containers the base file uses
+    return $('w3Full') || $('w3Embed') || $('panelLeft');
+  }
+
+  function ensureCards(){
+    const host = ensureW3();
+    if(!host) return null;
+
+    // Stats strip (regen speed + power)
+    if(!$('w3_statsBox')){
+      const stats = document.createElement('div');
+      stats.id = 'w3_statsBox';
+      stats.className = 'card';
+      stats.style.marginTop = '8px';
+      stats.innerHTML = `
+        <div class="row" style="justify-content:space-between">
+          <div class="small-muted">Regen speed: <strong id="w3_regenSpeed">—</strong> / tick</div>
+          <div class="small-muted">Power: <strong id="w3_powerVal">—</strong></div>
+        </div>
+      `;
+      host.appendChild(stats);
+    }
+
+    // Auto Attack upgrade card
+    if(!$('w3_autoCard')){
+      const auto = document.createElement('div');
+      auto.id = 'w3_autoCard';
+      auto.className = 'card';
+      auto.style.marginTop = '8px';
+      auto.innerHTML = `
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div>
+            <div><strong>Auto Attack</strong></div>
+            <div class="muted">Hits your current mob automatically without using stamina.</div>
+            <div class="small-muted">Damage: <span id="w3_autoDmg">—</span> (¼ of your normal click)</div>
+            <div class="small-muted">Interval: <span id="w3_autoInt">—</span> (min 0.33s) • Level: <span id="w3_autoLvl">0</span></div>
+          </div>
+          <div>
+            <button id="w3_buyAuto" class="upg"><strong id="w3_autoCost">Buy — 10 🏆</strong></button>
+          </div>
+        </div>
+      `;
+      host.appendChild(auto);
+
+      auto.addEventListener('click', (e)=>{
+        if(e.target && (e.target.id === 'w3_buyAuto' || e.target.id === 'w3_autoCost')){
+          try{
+            const mod = window.W3Module;
+            if(!mod || !mod.getState) return;
+            const s = mod.getState();
+            if(typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+            const cost = w3_autoCost(s.autoAtkLevel);
+            if((s.trophies||0) < cost) return; // not enough
+            s.trophies -= cost;
+            s.autoAtkLevel += 1;
+            if(!s._autoLast) s._autoLast = Date.now();
+            if(mod.setState) mod.setState(s);
+          }catch(_){}
+        }
+      });
+    }
+    return host;
+  }
+
+  function renderExtras(){
+    const host = ensureCards();
+    if(!host) return;
+    try{
+      const mod = window.W3Module;
+      if(!mod || !mod.getState) return;
+      const s = mod.getState();
+
+      // Regen speed (seconds per +1 stamina)
+      // Base logic in core: regenMs = max(300, floor(staminaRegenMs * (1 - prestigeBoostRegen)))
+      const baseMs = Math.max(300, Math.floor((Number(s.staminaRegenMs)||4000) * (1 - (Number(s.prestigeBoostRegen)||0))));
+      const regenSpeedEl = $('w3_regenSpeed'); if(regenSpeedEl) regenSpeedEl.textContent = (baseMs/1000).toFixed(2) + 's';
+
+      // Estimated Power (normal click damage)
+      const est = w3_estimatedClickDamage(s);
+      const powerEl = $('w3_powerVal'); if(powerEl) powerEl.textContent = fmt(est);
+
+      // Auto stats
+      const lvl = Number(s.autoAtkLevel||0);
+      const intMs = w3_autoIntervalMs(lvl);
+      const dmg = Math.max(1, Math.floor(est/4));
+      const lvlEl = $('w3_autoLvl'); if(lvlEl) lvlEl.textContent = fmt(lvl);
+      const intEl = $('w3_autoInt'); if(intEl) intEl.textContent = (intMs/1000).toFixed(2) + 's';
+      const dmgEl = $('w3_autoDmg'); if(dmgEl) dmgEl.textContent = fmt(dmg);
+      const costEl = $('w3_autoCost'); if(costEl) costEl.textContent = 'Buy — ' + fmt(w3_autoCost(lvl)) + ' 🏆';
+    }catch(_){}
+  }
+
+  // Wrap the module's render to keep our UI in sync
+  const _w3_renderAll = window.w3_renderAll;
+  if(typeof _w3_renderAll === 'function'){
+    window.w3_renderAll = function(){
+      try{ _w3_renderAll(); }catch(_){}
+      renderExtras();
+    };
+  }else{
+    // Fallback: periodic refresh if the module isn't exported yet
+    document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(renderExtras, 500); setInterval(renderExtras, 1000); });
+  }
+
+  // Auto-attack engine
+  function autoLoop(){
+    try{
+      const mod = window.W3Module;
+      if(!mod || !mod.getState || !mod.setState) return;
+      const s = mod.getState();
+      if(typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+      if(s.autoAtkLevel <= 0) return;
+
+      const now = Date.now();
+      const needed = w3_autoIntervalMs(s.autoAtkLevel);
+      if(!s._autoLast) s._autoLast = now;
+      if(now - s._autoLast < needed) return;
+      s._autoLast = now;
+
+      // Attack current mob (no stamina)
+      if(!s.currentMob || !s.currentMob.hp || s.currentMob.hp <= 0){
+        // nothing to hit
+        if(mod.setState) mod.setState(s);
+        return;
+      }
+      const est = w3_estimatedClickDamage(s);
+      const dmg = Math.max(1, Math.floor(est/4));
+      s.currentMob.hp = Math.max(0, Math.floor(s.currentMob.hp - dmg));
+
+      if(s.currentMob.hp <= 0){
+        // Award trophies like core
+        const mult = Number(s.trophyMult)||1;
+        const reward = Math.floor((s.currentMob.reward||0) * mult);
+        s.trophies = Math.max(0, (s.trophies||0) + reward);
+        // Simple respawn same mob at max HP
+        s.currentMob.hp = s.currentMob.maxHp;
+      }
+
+      if(mod.setState) mod.setState(s);
+    }catch(_){}
+  }
+
+  setInterval(autoLoop, 100); // smooth engine
+  // Initial paint attempt
+  if(document.readyState !== 'loading') { ensureCards(); renderExtras(); }
+  else document.addEventListener('DOMContentLoaded', () => { ensureCards(); renderExtras(); });
+})();
+</script>
+<!-- === End Patch === -->
 </body>
 </html>
 
