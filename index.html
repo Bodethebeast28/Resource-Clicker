@@ -4200,6 +4200,95 @@ body.theme-w3 header .muted { display:none !important; }
 })();
 </script>
 <!-- === End Patch === -->
+
+<!-- === Stability Fix Patch for World 1 click -> World 3 & W3 flashing === -->
+<script>
+(() => {
+  if (window.__w3StabilityPatch) return;
+  window.__w3StabilityPatch = true;
+
+  // Utility to wait for an element
+  function waitForEl(id, cb){
+    const el = document.getElementById(id);
+    if(el){ cb(el); return; }
+    const obs = new MutationObserver(() => {
+      const e = document.getElementById(id);
+      if(e){ try{ cb(e); }finally{ obs.disconnect(); } }
+    });
+    obs.observe(document.documentElement, {childList:true, subtree:true});
+  }
+
+  // 1) Ensure the World 3 container truly doesn't intercept clicks when hidden.
+  //    We force display:none when not in World 3, and display:block when active.
+  function hardToggleW3Display(){
+    const box = document.getElementById('w3CombatEmbed');
+    const meta = window.meta || {};
+    if(!box) return;
+    const isW3 = meta.activeWorld === 'w3';
+    box.style.display = isW3 ? 'block' : 'none';
+    box.style.pointerEvents = isW3 ? 'auto' : 'none';
+  }
+
+  // 2) Stop click bubbling from the W3 container so base-page generic click handlers
+  //    can't misinterpret clicks and flip worlds or cause flashes.
+  function stopBubbling(el){
+    if(!el) return;
+    el.addEventListener('click', (ev) => {
+      // Only allow our specific buttons to bubble if needed
+      const id = ev.target && ev.target.id;
+      const allowed = id === 'w3AttackBtn' || id === 'w3SellBtn' || id === 'w3AutoUpBtn' || id === 'enterW3' || id === 'unlockW3';
+      if(!allowed){
+        ev.stopPropagation();
+      }
+    }, true); // capture phase to be safe
+  }
+
+  // 3) Patch render/update wrappers (if our earlier patch exists) to call hardToggleW3Display
+  const _r = window.renderAll;
+  if(typeof _r === 'function'){
+    window.renderAll = function(){
+      try{ _r.apply(this, arguments); }catch(_){}
+      try{ hardToggleW3Display(); }catch(_){}
+    };
+  } else {
+    document.addEventListener('DOMContentLoaded', () => setInterval(hardToggleW3Display, 250));
+  }
+
+  // Also run on load and when the element appears
+  document.addEventListener('DOMContentLoaded', () => {
+    hardToggleW3Display();
+    waitForEl('w3CombatEmbed', (el) => {
+      // Default hidden
+      el.style.display = 'none';
+      el.style.pointerEvents = 'none';
+      stopBubbling(el);
+    });
+  });
+
+  // 4) Prevent accidental world flip from generic background clicks on World 1 panels.
+  //    If the click target is the BODY/HTML or a container without a data-action, stop bubbling.
+  document.addEventListener('click', (ev) => {
+    try{
+      const meta = window.meta || {};
+      const t = ev.target;
+      const isWorldSwitchBtn = t && (t.id === 'enterW1' || t.id === 'enterW2' || t.id === 'enterW3' || t.closest && t.closest('#enterW1,#enterW2,#enterW3'));
+      const inWorldsTab = t && (t.id === 'worldsBox' || (t.closest && t.closest('#worldsBox')));
+      if(isWorldSwitchBtn || inWorldsTab) return; // allow proper switching
+
+      // If base page is listening for generic clicks to toggle worlds, block those.
+      // Only do this when current world is W1 or W3 to fix the reported issues.
+      if(meta.activeWorld === 'w1' || meta.activeWorld === 'w3'){
+        // Permit clicks inside explicit interactive elements
+        const interactive = t.closest && t.closest('button, a, input, select, textarea, .upg, .btn, .tab, .world-card');
+        if(!interactive){
+          ev.stopPropagation();
+        }
+      }
+    }catch(_){}
+  }, true);
+})();
+</script>
+<!-- === End Stability Fix Patch === -->
 </body>
 </html>
 
