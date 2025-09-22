@@ -5164,3 +5164,162 @@ body:not(.theme-w3) .coin { background:#fef9c3 !important; color:#854d0e !import
 })();
 </script>
 <!-- === End v9 Patch === -->
+<!-- === Native-Hardbind W3 Auto Attacker + Live Counters (v13 NEW APPROACH) === -->
+<script>
+(() => {
+  if (window.__W3_NATIVE_BIND_V13__) return;
+  window.__W3_NATIVE_BIND_V13__ = true;
+
+  // Strictly use native w3state; if it's missing, don't emulate — show a warning instead.
+  function S(){ return window.w3state; }
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n)=> Number(n||0).toLocaleString();
+
+  // === UI Mount (only once) ===
+  function mountUI(){
+    if ($('w3_auto_native')) return;
+    const mobBox = $('w3_mobBox');
+    const host = mobBox ? mobBox.parentElement : (document.getElementById('panelLeft') || document.body);
+    const card = document.createElement('div');
+    card.id = 'w3_auto_native';
+    card.className = 'card';
+    card.style.marginTop = '8px';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <div><strong>Auto Attack (W3)</strong></div>
+          <div class="muted">Hits current mob automatically • does not use stamina</div>
+          <div class="small-muted">Damage: <span id="w3_auto_dmg">—</span> (¼ of Power)</div>
+          <div class="small-muted">Interval: <span id="w3_auto_int">—</span> (min 0.33s) • Level: <span id="w3_auto_lvl">0</span></div>
+        </div>
+        <div>
+          <button id="w3_buy_auto" class="upg" onclick="window.__w3_buy_auto_v13 && window.__w3_buy_auto_v13()">
+            <strong id="w3_auto_cost">Buy — 10 🏆</strong>
+          </button>
+        </div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">
+        <div class="small-muted">Regen speed: <strong id="w3_regen_speed">—</strong> / tick</div>
+        <div class="small-muted">Regen power: <strong id="w3_regen_pow">+1</strong></div>
+        <div class="small-muted">Power: <strong id="w3_power_val">—</strong></div>
+      </div>
+      <div id="w3_native_warn" class="small-muted" style="display:none;margin-top:6px;color:#b91c1c">
+        World 3 state not detected. Open World 3 first to initialize.
+      </div>
+    `;
+    if (mobBox && mobBox.nextSibling) mobBox.parentElement.insertBefore(card, mobBox.nextSibling);
+    else host.appendChild(card);
+
+    // Capture-phase backup click (in case something swallows onclick)
+    card.addEventListener('click', (ev)=>{
+      if (ev.target && (ev.target.id==='w3_buy_auto' || ev.target.id==='w3_auto_cost')){
+        if (window.__w3_buy_auto_v13) window.__w3_buy_auto_v13();
+        ev.stopPropagation();
+      }
+    }, true);
+  }
+
+  // === Power & Regen math mirrors native code ===
+  function powerEstimate(s){
+    // Mirrors endAttackPhase: base + scaled(average of min..max), then * damageMult
+    const base = 5 + (Number(s.weaponLevel)||0) * 3;
+    const min  = 10 + (Number(s.precisionLevel)||0) * 5;
+    const avgScaled = min + 5; // average of [min, min+10]
+    const mult = Number(s.damageMult)||1;
+    return Math.max(1, Math.floor((base + Math.floor(avgScaled)) * mult));
+  }
+  function regenMs(s){
+    return Math.max(300, Math.floor((Number(s.staminaRegenMs)||4000) * (1 - (Number(s.prestigeBoostRegen)||0))));
+  }
+  function autoCost(level){ return Math.max(1, Math.floor(10 * Math.pow(1.7, Number(level)||0))); }
+  function autoIntervalMs(level){ const start=5000, step=300, min=330; return Math.max(min, start - step*(Number(level)||0)); }
+
+  // === Render (live) ===
+  function render(){
+    mountUI();
+    const s = S();
+    const warn = $('w3_native_warn');
+    if (!s){
+      if (warn) warn.style.display = 'block';
+      return;
+    } else if (warn) warn.style.display = 'none';
+
+    if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+
+    const pow = powerEstimate(s);
+    const dmg = Math.max(1, Math.floor(pow/4));
+    const intMs = autoIntervalMs(s.autoAtkLevel);
+    const rMs = regenMs(s);
+
+    const lvlEl = $('w3_auto_lvl'); if(lvlEl) lvlEl.textContent = s.autoAtkLevel;
+    const intEl = $('w3_auto_int'); if(intEl) intEl.textContent = (intMs/1000).toFixed(2) + 's';
+    const dmgEl = $('w3_auto_dmg'); if(dmgEl) dmgEl.textContent = fmt(dmg);
+    const costEl = $('w3_auto_cost'); if(costEl) costEl.textContent = 'Buy — ' + fmt(autoCost(s.autoAtkLevel)) + ' 🏆';
+    const rsEl = $('w3_regen_speed'); if(rsEl) rsEl.textContent = (rMs/1000).toFixed(2) + 's';
+    const rpEl = $('w3_regen_pow'); if(rpEl) rpEl.textContent = '+1';
+    const pwEl = $('w3_power_val'); if(pwEl) pwEl.textContent = fmt(pow);
+  }
+
+  // === Buy handler (hard-bound) ===
+  window.__w3_buy_auto_v13 = function(){
+    const s = S(); if(!s) return;
+    if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+    const cost = autoCost(s.autoAtkLevel);
+    if ((s.trophies||0) < cost) return;
+    s.trophies -= cost;
+    s.autoAtkLevel += 1;
+    s._autoLast = Date.now();
+    // Native refresh
+    if (typeof window.w3_renderAll === 'function') window.w3_renderAll();
+    render();
+  };
+
+  // === Auto-attack engine (precise, native-bound) ===
+  function autoTick(){
+    const s = S(); if(!s) return;
+    if (!window.meta || meta.activeWorld !== 'w3') return;
+    const lvl = Number(s.autoAtkLevel||0);
+    if (lvl <= 0) return;
+
+    const need = autoIntervalMs(lvl);
+    const now = Date.now();
+    if (!s._autoLast) s._autoLast = now;
+    if ((now - s._autoLast) < need) return;
+    s._autoLast = now;
+
+    if (!s.currentMob || !s.currentMob.hp || s.currentMob.hp<=0) return;
+    const pow = powerEstimate(s);
+    const dmg = Math.max(1, Math.floor(pow/4));
+    s.currentMob.hp = Math.max(0, s.currentMob.hp - dmg);
+    if (s.currentMob.hp <= 0){
+      const reward = Math.floor((s.currentMob.reward||0) * (s.trophyMult||1));
+      s.trophies = (s.trophies||0) + reward;
+      // Respawn same mob with maxHp (avoid altering floor logic)
+      s.currentMob.hp = s.currentMob.maxHp || 10;
+    }
+    if (typeof window.w3_renderAll === 'function') window.w3_renderAll();
+  }
+
+  // === Hook native render so counters always track ===
+  const _w3r = window.w3_renderAll;
+  if (typeof _w3r === 'function'){
+    window.w3_renderAll = function(){
+      const out = _w3r.apply(this, arguments);
+      try { render(); } catch(_){}
+      return out;
+    };
+  } else {
+    document.addEventListener('DOMContentLoaded', render);
+  }
+
+  // === Timers ===
+  setInterval(render, 500);
+  setInterval(autoTick, 50);
+
+  // First mount now
+  if (document.readyState !== 'loading') render();
+  else document.addEventListener('DOMContentLoaded', render);
+})();
+</script>
+<!-- === End v13 NEW APPROACH === -->
