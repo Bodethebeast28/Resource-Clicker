@@ -5051,3 +5051,116 @@ body:not(.theme-w3) .coin { background:#fef9c3 !important; color:#854d0e !import
 })();
 </script>
 <!-- === End Clean W3 Auto Attack Patch v8 === -->
+
+<!-- === World State Unifier + Auto-Attack Buy Fix (v9) === -->
+<script>
+(() => {
+  if (window.__worldUnifierV9) return; window.__worldUnifierV9 = true;
+
+  // Ensure meta exists and make activeWorld a plain writable property (remove guards)
+  window.meta = window.meta || { activeWorld: 'w1', worldsUnlocked: { w1:true, w2:false, w3:false } };
+  (function normalizeActiveWorld(){
+    try{
+      const current = ('activeWorld' in meta) ? meta.activeWorld : 'w1';
+      // Remove any property descriptors that block setting
+      try { delete meta.activeWorld; } catch(_){}
+      try { Object.defineProperty(meta, 'activeWorld', { value: current, writable: true, configurable: true, enumerable: true }); } catch(_){
+        meta.activeWorld = current;
+      }
+    }catch(_){}
+  })();
+
+  function syncPanels(){
+    const aw = meta.activeWorld;
+    const res = document.getElementById('resourceGrid');           // W1
+    const fish = document.getElementById('fishingEmbed');          // W2
+    const w3 = document.getElementById('w3CombatEmbed') || document.getElementById('w3_mobBox')?.parentElement;
+    if (res)   res.classList.toggle('hidden', aw !== 'w1');
+    if (fish)  fish.classList.toggle('hidden', aw !== 'w2');
+    if (w3)  { w3.classList.toggle('hidden', aw !== 'w3'); w3.style.display = (aw==='w3'?'block':'none'); w3.style.pointerEvents = (aw==='w3'?'auto':'none'); }
+    // Update headers/subtitles if present
+    const titleEl = document.getElementById('leftTitleText');
+    const worldNameEl = document.getElementById('worldName');
+    const leftSub = document.getElementById('leftSub');
+    if (titleEl)    titleEl.textContent = aw==='w3' ? 'Combat' : (aw==='w2' ? 'Fishing' : 'Click Panel');
+    if (worldNameEl) worldNameEl.textContent = aw==='w3' ? 'World 3' : (aw==='w2' ? 'World 2' : 'World 1');
+    if (leftSub && aw==='w3') leftSub.textContent = 'Fight mobs to earn Trophies. Auto Attack does not consume stamina.';
+  }
+
+  window.setActiveWorld = function(w){
+    if (!w || !/^(w1|w2|w3)$/.test(w)) return;
+    meta.activeWorld = w;
+    // Ensure only one is "current" in the worlds list
+    const tags = document.querySelectorAll('.world-card .tag');
+    tags.forEach(el => el.remove());
+    // Ask native renders to refresh
+    try { if (typeof window.renderWorlds === 'function') window.renderWorlds(); } catch(_){}
+    try { if (typeof window.renderAll === 'function') window.renderAll(); } catch(_){}
+    try { if (typeof window.updateAll === 'function') window.updateAll(); } catch(_){}
+    try { if (typeof window.w3_renderAll === 'function') window.w3_renderAll(); } catch(_){}
+    try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch(_){}
+    syncPanels();
+  };
+
+  // Rebind world enter buttons after worlds render
+  const _renderWorlds = window.renderWorlds;
+  if (typeof _renderWorlds === 'function'){
+    window.renderWorlds = function(){
+      const out = _renderWorlds.apply(this, arguments);
+      // Bind buttons safely
+      const b1 = document.getElementById('enterW1'); if (b1) b1.onclick = () => setActiveWorld('w1');
+      const b2 = document.getElementById('enterW2'); if (b2) b2.onclick = () => setActiveWorld('w2');
+      const b3 = document.getElementById('enterW3'); if (b3) b3.onclick = () => setActiveWorld('w3');
+      syncPanels();
+      return out;
+    };
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      ['enterW1','enterW2','enterW3'].forEach(id => {
+        const b = document.getElementById(id); if (b) b.onclick = () => setActiveWorld(id.slice(-2));
+      });
+      syncPanels();
+    });
+  }
+
+  // --- Auto Attack Buy inline handler to bypass capture stoppers ---
+  window.buyW3Auto = function(){
+    try{
+      const s = window.w3state; if(!s) return;
+      if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+      const cost = Math.max(1, Math.floor(10 * Math.pow(1.7, s.autoAtkLevel)));
+      if ((s.trophies||0) < cost) return;
+      s.trophies -= cost;
+      s.autoAtkLevel += 1;
+      s._autoLast = Date.now();
+      if (typeof window.w3_renderAll === 'function') window.w3_renderAll();
+      if (typeof window.__w3_renderExtras === 'function') window.__w3_renderExtras();
+    }catch(_){}
+  };
+
+  // Replace the Buy button content (if present) to use inline onclick
+  function wireBuyButton(){
+    const btn = document.getElementById('w3_buyAuto');
+    if (!btn) return;
+    btn.setAttribute('onclick', 'buyW3Auto()');
+  }
+
+  // Keep our Regen/Power panel synced after native renders
+  const _w3r = window.w3_renderAll;
+  if (typeof _w3r === 'function'){
+    window.w3_renderAll = function(){
+      const r = _w3r.apply(this, arguments);
+      try { wireBuyButton(); } catch(_){}
+      try { if (typeof window.__w3_renderExtras === 'function') window.__w3_renderExtras(); } catch(_){}
+      return r;
+    };
+  } else {
+    document.addEventListener('DOMContentLoaded', wireBuyButton);
+  }
+
+  // Initial sync
+  if (document.readyState !== 'loading') { syncPanels(); wireBuyButton(); }
+  else document.addEventListener('DOMContentLoaded', () => { syncPanels(); wireBuyButton(); });
+})();
+</script>
+<!-- === End v9 Patch === -->
