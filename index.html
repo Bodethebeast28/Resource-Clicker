@@ -4893,3 +4893,161 @@ body:not(.theme-w3) .coin { background:#fef9c3 !important; color:#854d0e !import
   });
 })();
 </script>
+<!-- === Clean W3 Auto Attack (native) Patch v8 === -->
+<script>
+(() => {
+  if (window.__w3NativeAutoPatch) return;
+  window.__w3NativeAutoPatch = true;
+
+  // Helpers
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n)=> Number(n||0).toLocaleString();
+
+  // If prior duplicate cards exist, remove them
+  function removeDupes(){
+    const ids = ['w3_autoCard'];
+    ids.forEach(id => {
+      const els = document.querySelectorAll('#'+id);
+      if(els.length > 1){
+        for(let i=0;i<els.length-1;i++){ els[i].remove(); }
+      }
+    });
+  }
+
+  // Use the native w3state
+  function getState(){ return window.w3state; }
+  function setState(s){ window.w3state = s; }
+
+  function estPower(s){
+    // Mirror endAttackPhase math around lines ~2723-2725 in your file
+    const base = 5 + (s.weaponLevel*3);
+    const min = 10 + (s.precisionLevel*5);
+    const max = min + 10;
+    const avgScaled = min + 5; // average between min and max
+    const dmg = (base + Math.floor(avgScaled)) * (s.damageMult||1);
+    return Math.max(1, Math.floor(dmg));
+  }
+  function regenMsFrom(s){
+    return Math.max(300, Math.floor(s.staminaRegenMs*(1-(s.prestigeBoostRegen||0))));
+  }
+
+  function autoCost(level){ return Math.max(1, Math.floor(10 * Math.pow(1.7, Number(level)||0))); }
+  function autoIntervalMs(level){ const start=5000, step=300, min=330; return Math.max(min, start - step*(Number(level)||0)); }
+
+  function mountUI(){
+    if ($('w3_autoCard')) return;
+    // insert after mob card if available, else at the end of World 3 column
+    const mobBox = $('w3_mobBox');
+    const container = mobBox ? mobBox.parentElement : document.getElementById('panelLeft') || document.body;
+
+    const card = document.createElement('div');
+    card.id = 'w3_autoCard';
+    card.className = 'card';
+    card.style.marginTop = '8px';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <div><strong>Auto Attack (World 3)</strong></div>
+          <div class="muted">Auto-hits current mob without using stamina.</div>
+          <div class="small-muted">Damage: <span id="w3_autoDmg">—</span> (¼ of click)</div>
+          <div class="small-muted">Interval: <span id="w3_autoInt">—</span> (min 0.33s) • Level: <span id="w3_autoLvl">0</span></div>
+        </div>
+        <div>
+          <button id="w3_buyAuto" class="upg"><strong id="w3_autoCost">Buy — 10 🏆</strong></button>
+        </div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">
+        <div class="small-muted">Regen speed: <strong id="w3_regenSpeed">—</strong> / tick</div>
+        <div class="small-muted">Regen power: <strong id="w3_regenPower">+1</strong></div>
+        <div class="small-muted">Power: <strong id="w3_powerVal">—</strong></div>
+      </div>
+    `;
+    if(mobBox && mobBox.nextSibling) mobBox.parentElement.insertBefore(card, mobBox.nextSibling);
+    else container.appendChild(card);
+
+    // Buy click
+    card.addEventListener('click', (e)=>{
+      if(!(e.target && (e.target.id==='w3_buyAuto' || e.target.id==='w3_autoCost'))) return;
+      const s = getState(); if(!s) return;
+      if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+      const cost = autoCost(s.autoAtkLevel);
+      if ((s.trophies||0) < cost) return;
+      s.trophies -= cost;
+      s.autoAtkLevel += 1;
+      if(!s._autoLast) s._autoLast = Date.now();
+      setState(s);
+      render();
+      // Also refresh native W3 UI numbers
+      if (typeof window.w3_renderAll === 'function') window.w3_renderAll();
+    }, true);
+  }
+
+  function render(){
+    const s = getState(); if(!s) return;
+    if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+    const power = estPower(s);
+    const intMs = autoIntervalMs(s.autoAtkLevel);
+    const dmg = Math.max(1, Math.floor(power/4));
+    const regenMs = regenMsFrom(s);
+
+    const lvlEl=$('w3_autoLvl'); if(lvlEl) lvlEl.textContent = s.autoAtkLevel;
+    const intEl=$('w3_autoInt'); if(intEl) intEl.textContent = (intMs/1000).toFixed(2)+'s';
+    const dmgEl=$('w3_autoDmg'); if(dmgEl) dmgEl.textContent = fmt(dmg);
+    const costEl=$('w3_autoCost'); if(costEl) costEl.textContent = 'Buy — ' + fmt(autoCost(s.autoAtkLevel)) + ' 🏆';
+    const rsEl=$('w3_regenSpeed'); if(rsEl) rsEl.textContent = (regenMs/1000).toFixed(2)+'s';
+    const rpEl=$('w3_regenPower'); if(rpEl) rpEl.textContent = '+1';
+    const powEl=$('w3_powerVal'); if(powEl) powEl.textContent = fmt(power);
+  }
+
+  // Auto engine (uses native w3state, only in W3)
+  function autoLoop(){
+    try{
+      const s = getState(); if(!s) return;
+      if ((window.meta && meta.activeWorld) !== 'w3') return;
+      const lvl = Number(s.autoAtkLevel||0); if(lvl<=0) return;
+
+      const need = autoIntervalMs(lvl);
+      const now = Date.now();
+      if(!s._autoLast) s._autoLast = now;
+      if(now - s._autoLast < need) return;
+      s._autoLast = now;
+
+      if(!s.currentMob || !s.currentMob.hp || s.currentMob.hp<=0) return;
+      const dmg = Math.max(1, Math.floor(estPower(s)/4));
+      s.currentMob.hp = Math.max(0, s.currentMob.hp - dmg);
+      if(s.currentMob.hp<=0){
+        const reward = Math.floor((s.currentMob.reward||0) * (s.trophyMult||1));
+        s.trophies = (s.trophies||0) + reward;
+        // Respawn same mob at max HP to avoid altering your floor progression
+        s.currentMob.hp = s.currentMob.maxHp || 10;
+      }
+      setState(s);
+      // Refresh both our panel and native UI
+      render();
+      if (typeof window.w3_renderAll === 'function') window.w3_renderAll();
+    }catch(_){}
+  }
+
+  // Wire into the native render so upgrades instantly reflect
+  const _w3r = window.w3_renderAll;
+  if (typeof _w3r === 'function'){
+    window.w3_renderAll = function(){
+      try{ _w3r.apply(this, arguments); } finally { try{ render(); }catch(_){ } }
+    };
+  }
+
+  // Init
+  function init(){
+    removeDupes();
+    mountUI();
+    render();
+  }
+  if (document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
+
+  // Timers
+  setInterval(render, 500);
+  setInterval(autoLoop, 100);
+})();
+</script>
+<!-- === End Clean W3 Auto Attack Patch v8 === -->
