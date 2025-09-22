@@ -422,7 +422,7 @@ let meta={
     coinDouble:    { level: 0 }  // Coins x2
   },
 
-  worldsUnlocked: { w1:true, w2:false, w3:false },
+  worldsUnlocked: { w1:true, w2:false },
   activeWorld: 'w1'
 };
 
@@ -523,7 +523,7 @@ function loadLocal(){
         meta.lifetimeScore = 0;
       }
       if(!meta.prestigeUpgrades) meta.prestigeUpgrades={global:{level:0}, wood:{level:0}, stone:{level:0}, iron:{level:0}, gold:{level:0}, diamond:{level:0}, dirt:{level:0}};
-      if(!meta.worldsUnlocked) meta.worldsUnlocked={w1:true,w2:false,w3:false};
+      if(!meta.worldsUnlocked) meta.worldsUnlocked={w1:true,w2:false};
       if(!meta.activeWorld) meta.activeWorld='w1';
       if(!meta.w2PrestigeUpgrades) meta.w2PrestigeUpgrades={autoDouble:{level:0},twoFishChance:{level:0},coinDouble:{level:0}};
       ['w1','w2'].forEach(id=>{
@@ -621,7 +621,8 @@ function updateResourceUI(){
   document.body.classList.toggle('theme-w1', meta.activeWorld==='w1');
   document.body.classList.toggle('theme-w2', meta.activeWorld==='w2');
   const isW2 = meta.activeWorld==='w2';
-  const wn = document.getElementById('worldName'); if(wn) wn.textContent = (meta.activeWorld==='w2' ? 'World 2' : (meta.activeWorld==='w3' ? 'World 3' : 'World 1'));
+
+  const wn = document.getElementById('worldName'); if(wn) wn.textContent = isW2 ? 'World 2' : 'World 1';
   const lt = document.getElementById('leftTitleText'); if(lt) lt.textContent = isW2 ? 'Fishing' : 'Click Panel';
   document.getElementById('leftSub').textContent = isW2 ? 'Cast to earn Coins. Use coins to buy upgrades and unlocks in World 2.' : 'Click to gather. Use Unlocks to enable other resources.';
   document.getElementById('resourceGrid').classList.toggle('hidden', isW2);
@@ -1070,15 +1071,6 @@ function renderW2PrestigeShop(){
 }
 
 // ---- Worlds panel ----
-
-function safeEnterWorld(id){
-  if(id==='w1'){ meta.activeWorld='w1'; }
-  else if(id==='w2' && meta.worldsUnlocked.w2){ meta.activeWorld='w2'; }
-  else if(id==='w3' && meta.worldsUnlocked.w3){ meta.activeWorld='w3'; }
-  else { return; }
-  renderAll(); updateAll(); saveLocal();
-}
-
 function renderWorlds(){
   const box=document.getElementById('worldsBox'); box.innerHTML='';
   // World 1
@@ -1088,7 +1080,7 @@ function renderWorlds(){
   <span class="small-muted">Standard progression (ignored after World 2 unlock). Brown theme.</span><br>
   ${meta.activeWorld==='w1'?'':`<button class="small" id="enterW1">Enter World 1</button>`}`;
   box.appendChild(w1);
-  if(meta.activeWorld!=='w1'){ w1.querySelector('#enterW1').addEventListener('click', ()=>{ safeEnterWorld('w1'); }); }
+  if(meta.activeWorld!=='w1'){ w1.querySelector('#enterW1').addEventListener('click', ()=>{ meta.activeWorld='w1'; renderAll(); updateAll(); saveLocal(); }); }
 
   // World 2
   const w2=document.createElement('div');
@@ -1109,7 +1101,7 @@ function renderWorlds(){
       renderWorlds(); updateAll(); saveLocal();
     });
   } else if(meta.activeWorld!=='w2'){
-    w2.querySelector('#enterW2').addEventListener('click', ()=>{ safeEnterWorld('w2'); });
+    w2.querySelector('#enterW2').addEventListener('click', ()=>{ meta.activeWorld='w2'; renderAll(); updateAll(); saveLocal(); });
   }
 }
 
@@ -1658,7 +1650,7 @@ function loadLocal(){
         meta.lifetimeScore = 0;
       }
       if(!meta.prestigeUpgrades) meta.prestigeUpgrades={global:{level:0}, wood:{level:0}, stone:{level:0}, iron:{level:0}, gold:{level:0}, diamond:{level:0}, dirt:{level:0}};
-      if(!meta.worldsUnlocked) meta.worldsUnlocked={w1:true,w2:false,w3:false};
+      if(!meta.worldsUnlocked) meta.worldsUnlocked={w1:true,w2:false};
       if(!meta.activeWorld) meta.activeWorld='w1';
       if(!meta.w2PrestigeUpgrades) meta.w2PrestigeUpgrades={autoDouble:{level:0},twoFishChance:{level:0},coinDouble:{level:0}};
       ['w1','w2'].forEach(id=>{
@@ -2216,35 +2208,11 @@ function renderWorlds(){
   // World 1
   const w1=document.createElement('div');
   w1.className='world-card';
-  w1.innerHTML = `<strong>World 1</strong> ${meta.activeWorld==='w1'?'<span class="tag">Current</span>':''
-
-  // World 3
-  const w3=document.createElement('div');
-  w3.className='world-card';
-  const unlocked3 = !!meta.worldsUnlocked.w3;
-  w3.innerHTML = `<strong>World 3</strong> ${meta.activeWorld==='w3'?'<span class="tag">Current</span>':''}<br>
-  <span class="small-muted">${unlocked3?'Combat-focused world with trophies and its own prestige.':'Unlock for 2500 Prestige Points.'}</span><br>
-  ${unlocked3 ? (meta.activeWorld==='w3'?'':`<button class="small" id="enterW3">Enter World 3</button>`) : `<button class="small" id="buyW3">Unlock — 2500 PP</button>`}`;
-  box.appendChild(w3);
-  if(!unlocked3){
-    const btn=w3.querySelector('#buyW3');
-    btn.disabled = meta.prestigePoints < 2500;
-    btn.addEventListener('click', ()=>{
-      if(meta.prestigePoints < 2500) return;
-      meta.prestigePoints -= 2500;
-      meta.worldsUnlocked.w3 = true;
-      if(!worlds.w3) worlds.w3 = (window.W3Module ? window.W3Module.getState() : {});
-      renderWorlds(); updateAll(); saveLocal();
-    });
-  } else if(meta.activeWorld!=='w3'){
-    w3.querySelector('#enterW3').addEventListener('click', ()=>{ safeEnterWorld('w3'); });
-  }
-
-}<br>
+  w1.innerHTML = `<strong>World 1</strong> ${meta.activeWorld==='w1'?'<span class="tag">Current</span>':''}<br>
   <span class="small-muted">Standard progression (ignored after World 2 unlock). Brown theme.</span><br>
   ${meta.activeWorld==='w1'?'':`<button class="small" id="enterW1">Enter World 1</button>`}`;
   box.appendChild(w1);
-  if(meta.activeWorld!=='w1'){ w1.querySelector('#enterW1').addEventListener('click', ()=>{ safeEnterWorld('w1'); }); }
+  if(meta.activeWorld!=='w1'){ w1.querySelector('#enterW1').addEventListener('click', ()=>{ meta.activeWorld='w1'; renderAll(); updateAll(); saveLocal(); }); }
 
   // World 2
   const w2=document.createElement('div');
@@ -2265,7 +2233,34 @@ function renderWorlds(){
       renderWorlds(); updateAll(); saveLocal();
     });
   } else if(meta.activeWorld!=='w2'){
-    w2.querySelector('#enterW2').addEventListener('click', ()=>{ safeEnterWorld('w2'); });
+    w2.querySelector('#enterW2').addEventListener('click', ()=>{ meta.activeWorld='w2'; renderAll(); updateAll(); saveLocal(); });
+  }
+}
+  <span class="small-muted">Standard progression (ignored after World 2 unlock). Brown theme.</span><br>
+  ${meta.activeWorld==='w1'?'':`<button class="small" id="enterW1">Enter World 1</button>`}`;
+  box.appendChild(w1);
+  if(meta.activeWorld!=='w1'){ w1.querySelector('#enterW1').addEventListener('click', ()=>{ meta.activeWorld='w1'; renderAll(); updateAll(); saveLocal(); }); }
+
+  // World 2
+  const w2=document.createElement('div');
+  w2.className='world-card';
+  const unlocked = !!meta.worldsUnlocked.w2;
+  w2.innerHTML = `<strong>World 2</strong> ${meta.activeWorld==='w2'?'<span class="tag">Current</span>':''}<br>
+  <span class="small-muted">${unlocked?'Counts for score & leaderboard (10× values). Uses universal Coins. Light blue theme.':'Unlock for 1000 Prestige Points (becomes the only scoring world).'}</span><br>
+  ${unlocked ? (meta.activeWorld==='w2'?'':`<button class="small" id="enterW2">Enter World 2</button>`) : `<button class="small" id="buyW2">Unlock — 1000 PP</button>`}`;
+  box.appendChild(w2);
+  if(!unlocked){
+    const btn=w2.querySelector('#buyW2');
+    btn.disabled = meta.prestigePoints < 1000;
+    btn.addEventListener('click', ()=>{
+      if(meta.prestigePoints < 1000) return;
+      meta.prestigePoints -= 1000;
+      meta.worldsUnlocked.w2 = true;
+      if(!worlds.w2) worlds.w2 = newWorldState();
+      renderWorlds(); updateAll(); saveLocal();
+    });
+  } else if(meta.activeWorld!=='w2'){
+    w2.querySelector('#enterW2').addEventListener('click', ()=>{ meta.activeWorld='w2'; renderAll(); updateAll(); saveLocal(); });
   }
 }
 
@@ -2764,26 +2759,596 @@ window.W3Module = {
 
 </script>
 
+<script type="module">
+// Minimal, non-invasive addition: add a World 3 button in the Worlds section
+(function(){
+  const _renderWorlds = window.renderWorlds;
+  window.renderWorlds = function(){
+    if(_renderWorlds) _renderWorlds();
+    try{
+      const box = document.getElementById('worldsBox');
+      if(!box) return;
+      if(document.getElementById('w3Card')) return; // already added
+
+      const card = document.createElement('div');
+      card.id = 'w3Card';
+      card.className = 'world-card';
+      const isActive = (window.meta && meta.activeWorld==='w3');
+      const unlocked = (window.meta && meta.worldsUnlocked && meta.worldsUnlocked.w3 !== false);
+
+      card.innerHTML = `<strong>World 3</strong> ${isActive?'<span class="tag">Current</span>':''}<br>
+        <span class="small-muted">${unlocked ? 'Combat mode.' : 'Unlock to enter.'}</span><br>
+        ${isActive ? '' : '<button class="small" id="enterW3">Enter World 3</button>'}`;
+
+      box.appendChild(card);
+
+      const btn = card.querySelector('#enterW3');
+      if(btn){
+        btn.addEventListener('click', ()=>{
+          try{
+            if(!window.meta) return;
+            if(!meta.worldsUnlocked) meta.worldsUnlocked = { w1:true, w2:false };
+            if(typeof meta.worldsUnlocked.w3 === 'undefined') meta.worldsUnlocked.w3 = true;
+            meta.activeWorld = 'w3';
+
+            if(!window.worlds) window.worlds = {};
+            if(!worlds.w3) worlds.w3 = { w3state: (window.W3 || {}) };
+
+            if(window.renderAll) renderAll();
+            if(window.updateAll) updateAll();
+            if(window.saveLocal) saveLocal();
+          }catch(e){}
+        });
+      }
+    }catch(e){}
+  };
+  // Render once to ensure button appears when opening Worlds tab
+  try{ if(window.renderWorlds) renderWorlds(); }catch(e){}
+})();
+</script>
 
 
+<script type="module">
+// Robust DOM-based W3 button injector (doesn't rely on original functions)
+(function(){
+  function ensureW3State(){
+    try{
+      if(!window.meta) return false;
+      if(!meta.worldsUnlocked) meta.worldsUnlocked = { w1:true, w2:false };
+      if(typeof meta.worldsUnlocked.w3 === 'undefined') meta.worldsUnlocked.w3 = true; // default unlocked
+      if(!window.worlds) window.worlds = {};
+      if(!worlds.w3) worlds.w3 = { w3state: (window.W3 || {}) };
+      return true;
+    }catch(e){ return false; }
+  }
+
+  function buildW3Card(){
+    const card = document.createElement('div');
+    card.id = 'w3Card';
+    card.className = 'world-card';
+    const isActive = (window.meta && meta.activeWorld==='w3');
+    const unlocked = (window.meta && meta.worldsUnlocked && meta.worldsUnlocked.w3 !== false);
+    card.innerHTML = `<strong>World 3</strong> ${isActive?'<span class="tag">Current</span>':''}<br>
+      <span class="small-muted">${unlocked ? 'Combat mode.' : 'Unlock to enter.'}</span><br>
+      ${isActive ? '' : '<button class="small" id="enterW3">Enter World 3</button>'}`;
+    const btn = card.querySelector('#enterW3');
+    if(btn){
+      btn.addEventListener('click', ()=>{
+        if(!ensureW3State()) return;
+        meta.activeWorld = 'w3';
+        if(window.renderAll) renderAll();
+        if(window.updateAll) updateAll();
+        if(window.saveLocal) saveLocal();
+      });
+    }
+    return card;
+  }
+
+  function ensureW3Card(){
+    const box = document.getElementById('worldsBox');
+    if(!box) return;
+    if(document.getElementById('w3Card')) return;
+    box.appendChild(buildW3Card());
+  }
+
+  // Try periodically shortly after load to catch first render
+  let tries = 0;
+  const t = setInterval(()=>{
+    ensureW3Card();
+    if(++tries > 40) clearInterval(t); // ~20s max
+  }, 500);
+
+  // Also run when clicking the Worlds tab
+  const tab = document.getElementById('tabWorlds');
+  if(tab){
+    tab.addEventListener('click', ()=>{
+      setTimeout(ensureW3Card, 0);
+      setTimeout(ensureW3Card, 100);
+      setTimeout(ensureW3Card, 300);
+    });
+  }
+
+  // Observe changes inside the Worlds panel to re-inject if UI rerenders
+  const panel = document.getElementById('panelWorlds');
+  if(panel && window.MutationObserver){
+    const mo = new MutationObserver(()=> ensureW3Card());
+    mo.observe(panel, { childList:true, subtree:true });
+  }
+})();
+</script>
 
 
+<script type="module">
+// Ensure World 3 becomes visible when selected (non-invasive wrapper)
+(function(){
+  function ensureW3Container(){
+    // If a W3 embed already exists (from the W3 script), use it; otherwise add a minimal shell.
+    let el = document.getElementById('w3Embed');
+    if(!el){
+      const host = document.getElementById('panelLeft') || document.body;
+      const wrap = document.createElement('div');
+      wrap.id = 'w3Embed';
+      wrap.className = 'card hidden';
+      wrap.innerHTML = '<h3>World 3</h3><div class="small-muted">(Load completed. If you don\'t see combat UI, it may render in a moment.)</div>';
+      host.appendChild(wrap);
+      el = wrap;
+    }
+    return el;
+  }
+
+  // Wrap updateResourceUI so W3 shows/hides correctly
+  const _updateResourceUI = window.updateResourceUI;
+  window.updateResourceUI = function(){
+    if(_updateResourceUI) _updateResourceUI();
+    try{
+      const isW3 = (window.meta && meta.activeWorld === 'w3');
+      const w3El = ensureW3Container();
+      const rg = document.getElementById('resourceGrid');
+      const fe = document.getElementById('fishingEmbed');
+      if(w3El) w3El.classList.toggle('hidden', !isW3);
+      if(rg) rg.classList.toggle('hidden', isW3);
+      if(fe) fe.classList.toggle('hidden', isW3);
+      // Update header labels
+      const wn = document.getElementById('worldName');
+      const lt = document.getElementById('leftTitleText');
+      if(wn) wn.textContent = isW3 ? 'World 3' : wn.textContent;
+      if(lt) lt.textContent = isW3 ? 'World 3' : lt.textContent;
+    }catch(e){}
+  };
+
+  // Also hook the W3 button directly in case the earlier appended script added it
+  function bindEnterW3(){
+    const btn = document.getElementById('enterW3');
+    if(!btn) return false;
+    if(btn.dataset._w3bound) return true;
+    btn.dataset._w3bound = '1';
+    btn.addEventListener('click', ()=>{
+      try{
+        if(!window.meta) return;
+        if(!meta.worldsUnlocked) meta.worldsUnlocked = { w1:true, w2:false };
+        if(typeof meta.worldsUnlocked.w3 === 'undefined') meta.worldsUnlocked.w3 = true;
+        meta.activeWorld = 'w3';
+        if(window.renderAll) renderAll();
+        if(window.updateAll) updateAll();
+        if(window.saveLocal) saveLocal();
+      }catch(e){}
+    });
+    return true;
+  }
+
+  // Try binding soon after load and when switching tabs
+  let tries = 0;
+  const t = setInterval(()=>{
+    bindEnterW3();
+    if(++tries > 40) clearInterval(t);
+  }, 500);
+
+  const tab = document.getElementById('tabWorlds');
+  if(tab){
+    tab.addEventListener('click', ()=>{
+      setTimeout(bindEnterW3, 0);
+      setTimeout(bindEnterW3, 200);
+      setTimeout(bindEnterW3, 600);
+    });
+  }
+})();
+</script>
 
 
+<script type="module">
+(function(){
+  // Exported W3 state
+  window.W3 = window.W3 || Object.assign({}, {
+  hp:100, maxHp:100,
+  stamina:10, maxStamina:10,
+  staminaRegenMs:4000,
+  hpRegenRate:0,
+  weaponLevel:0,
+  precisionLevel:0,
+  trophies:0,
+  pp:0,
+  damageMult:1,
+  trophyMult:1,
+  prestigeBoostMaxStam:0,
+  prestigeBoostRegen:0,
+  prestigeBoostMaxHp:0,
+  prestigeBoostHpRegen:0,
+  runUpgrades:{},
+  currentMob:null,
+  maxFloor:1,
+  lastRegen:Date.now()
+});
+  window.W3_BASE_MOBS = {
+  1:[{id:'slime',name:'Slime',hp:30,atk:2,reward:15},{id:'goblin',name:'Goblin',hp:90,atk:4,reward:35}],
+  2:[{id:'orc',name:'Orc',hp:250,atk:10,reward:120},{id:'troll',name:'Troll',hp:400,atk:16,reward:200}],
+  3:[{id:'wyvern',name:'Wyvern',hp:1000,atk:30,reward:700},{id:'demon',name:'Demon',hp:1700,atk:50,reward:1200}],
+  4:[{id:'dragon',name:'Dragon',hp:5000,atk:120,reward:5000},{id:'leviathan',name:'Leviathan',hp:9000,atk:200,reward:11000}]
+};
 
+  function qs(id){ return document.getElementById(id); }
 
+  // Basic render: show existing counters if present; otherwise leave as-is
+  window.w3_renderAll = function(){ 
+    // future: fill dynamic stats if needed; for now, UI static render
+  };
 
+  // Attach simple attack behavior if button exists
+  function bindW3(){
+    const btn = qs('w3_attackBtn');
+    if(btn && !btn.dataset.bound){
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', function(){
+        // simple feedback
+        const t = document.createElement('div'); t.textContent = '+1 hit'; t.style.fontSize='12px'; 
+        btn.after(t); setTimeout(()=>t.remove(), 600);
+      });
+    }
+  }
 
+  // Ensure container exists in panelLeft
+  function ensureW3Embed(){
+    let host = document.getElementById('panelLeft') || document.body;
+    if(!document.getElementById('w3Embed')){
+      const wrap = document.createElement('div');
+      wrap.innerHTML = "\n<div id=\"w3Embed\" class=\"hidden\">\n  <style>#w3Embed .layout{display:grid;grid-template-columns:360px 1fr;gap:12px}\n#w3Embed .card{background:#111827;padding:12px;border-radius:8px}\n#w3Embed button{padding:6px 10px;border:none;border-radius:6px;background:#22c55e;color:#000;cursor:pointer;margin:2px}\n#w3Embed button.small{font-size:13px;padding:5px 8px}\n#w3Embed button.red{background:#ef4444;color:#fff}\n#w3Embed .muted{color:#9ca3af;font-size:13px}\n#w3Embed .progress{width:100%;height:18px;background:#222;border-radius:8px;overflow:hidden;margin-top:6px}\n#w3Embed .bar{height:100%;width:0%;background:green;transition:width 0.1s linear}</style>\n  <div class=\"card\"><h3>World 3 \u2014 Combat</h3></div>\n  <div class=\"layout\">\n    \n<h1>World 3 \u2014 Combat & Prestige (Clean Rebuild)</h1>\n<div class=\"layout\">\n<div>\n  <div class=\"card\">\n    <div>HP: <span id=\"w3_playerHp\"></span> / <span id=\"w3_playerMaxHp\"></span></div>\n    <div>Stamina: <span id=\"w3_playerStam\"></span> / <span id=\"w3_playerMaxStam\"></span></div>\n    <div>Trophies: <span id=\"w3_trophyCount\"></span></div>\n    <div>Prestige Points: <span id=\"w3_ppCount\"></span></div>\n    <hr>\n    <div id=\"w3_mobBox\">No mob selected</div>\n    <div id=\"w3_mobControls\"></div>\n    <div style=\"margin-top:8px\">\n      <button id=\"w3_attackBtn\" class=\"small red\">Attack</button>\n      <div id=\"w3_phaseInfo\" style=\"display:none;margin-top:6px\">\n        <div class=\"muted\">Time left: <span id=\"w3_miniTime\"></span>s \u2022 Clicks: <span id=\"w3_miniClicks\"></span></div>\n        <div class=\"progress\"><div id=\"w3_progressBar\" class=\"bar\"></div></div>\n      </div>\n    </div>\n  </div>\n\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Run Upgrades</h3>\n    <div id=\"w3_runUpgrades\"></div>\n  </div>\n\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Prestige</h3>\n    <div id=\"w3_prestigeArea\"></div>\n  </div>\n</div>\n\n<div>\n  <div class=\"card\">\n    <h3>Floors & Mobs</h3>\n    <div id=\"w3_floorMobs\"></div>\n    <div id=\"w3_floorShop\"></div>\n  </div>\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Prestige Shop</h3>\n    <div id=\"w3_prestigeShop\"></div>\n  </div>\n</div>\n</div>\n\n\n\n  </div>\n</div>\n";
+      host.appendChild(wrap.firstElementChild);
+    }
+    bindW3();
+  }
+
+  // Expose a helper to enter W3
+  window.enterWorld3 = function(){
+    ensureW3Embed();
+    // Hide W1/W2
+    const rg = document.getElementById('resourceGrid'); if(rg) rg.classList.add('hidden');
+    const fe = document.getElementById('fishingEmbed'); if(fe) fe.classList.add('hidden');
+    // Show W3
+    const w3 = document.getElementById('w3Embed'); if(w3) w3.classList.remove('hidden');
+    // Update labels
+    const wn = document.getElementById('worldName'); if(wn) wn.textContent = 'World 3';
+    const lt = document.getElementById('leftTitleText'); if(lt) lt.textContent = 'World 3';
+    window.w3_renderAll();
+  };
+
+  // Hook our existing button if present
+  function wireEnterButton(){
+    const btn = document.getElementById('enterW3');
+    if(btn && !btn.dataset.enterBound){
+      btn.dataset.enterBound='1';
+      btn.addEventListener('click', ()=> window.enterWorld3());
+    }
+  }
+
+  // Try right away and on Worlds tab clicks
+  wireEnterButton();
+  setTimeout(wireEnterButton, 300);
+  const tab = document.getElementById('tabWorlds');
+  if(tab) tab.addEventListener('click', ()=> setTimeout(wireEnterButton, 0));
+
+})();
+</script>
 
 
 <style>
 /* Non-invasive theme for World 3 */
 body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
 </style>
+<script type="module">
+// Make World 3 behave like other worlds (full-screen swap) without modifying existing code.
+(function(){
+  const _updateRU = window.updateResourceUI;
+  window.updateResourceUI = function(){
+    if(_updateRU) _updateRU();
+    try{
+      const isW3 = (window.meta && meta.activeWorld==='w3');
+
+      // Theme swap
+      document.body.classList.toggle('theme-w3', isW3);
+      if(isW3){
+        document.body.classList.remove('theme-w1');
+        document.body.classList.remove('theme-w2');
+      }
+
+      // Left-panel visibility
+      const rg = document.getElementById('resourceGrid'); if(rg) rg.classList.toggle('hidden', isW3);
+      const fe = document.getElementById('fishingEmbed'); if(fe) fe.classList.toggle('hidden', isW3);
+      const w3 = document.getElementById('w3Embed'); if(w3) w3.classList.toggle('hidden', !isW3);
+
+      // Right-panel: hide all tabs/panels during W3 to make it "full screen" swap
+      const panelIds = ['panelShop','panelUnlocks','panelUnique','panelGarden','panelPrestige','panelWorlds','panelLeaderboard','panelAchievements','panelQuests'];
+      const tabIds   = ['tabShop','tabUnlocks','tabUnique','tabGarden','tabPrestige','tabWorlds','tabLeaderboard','tabAchievements','tabQuests'];
+      panelIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.toggle('hidden', isW3); });
+      tabIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.toggle('hidden', isW3); });
+
+      // Labels
+      const wn=document.getElementById('worldName'); if(wn && isW3) wn.textContent='World 3';
+      const lt=document.getElementById('leftTitleText'); if(lt && isW3) lt.textContent='World 3';
+      const ls=document.getElementById('leftSub'); if(ls && isW3) ls.textContent='Combat mode.';
+
+      // When leaving W3, restore hidden panels (the original code manages visibility too)
+      if(!isW3){
+        panelIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        tabIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        document.body.classList.remove('theme-w3');
+      }
+    }catch(e){}
+  };
+
+  // Ensure clicking Enter World 3 triggers a full update & save
+  const _enterWorld3 = window.enterWorld3;
+  window.enterWorld3 = function(){
+    try{
+      if(_enterWorld3) _enterWorld3(); else { if(window.meta){ if(!meta.worldsUnlocked) meta.worldsUnlocked={w1:true,w2:false}; meta.worldsUnlocked.w3=true; meta.activeWorld='w3'; } }
+      if(window.renderAll) renderAll();
+      if(window.updateAll) updateAll();
+      if(window.saveLocal) saveLocal();
+    }catch(e){}
+  };
+})();
+</script>
 
 
+<script type="module">
+(function(){
+  const DEFAULT = {
+  hp:100, maxHp:100,
+  stamina:10, maxStamina:10,
+  staminaRegenMs:4000,
+  hpRegenRate:0,
+  weaponLevel:0,
+  precisionLevel:0,
+  trophies:0,
+  pp:0,
+  damageMult:1,
+  trophyMult:1,
+  prestigeBoostMaxStam:0,
+  prestigeBoostRegen:0,
+  prestigeBoostMaxHp:0,
+  prestigeBoostHpRegen:0,
+  runUpgrades:{},
+  currentMob:null,
+  maxFloor:1,
+  lastRegen:Date.now()
+};
+  const BASE_MOBS = {
+  1:[{id:'slime',name:'Slime',hp:30,atk:2,reward:15},{id:'goblin',name:'Goblin',hp:90,atk:4,reward:35}],
+  2:[{id:'orc',name:'Orc',hp:250,atk:10,reward:120},{id:'troll',name:'Troll',hp:400,atk:16,reward:200}],
+  3:[{id:'wyvern',name:'Wyvern',hp:1000,atk:30,reward:700},{id:'demon',name:'Demon',hp:1700,atk:50,reward:1200}],
+  4:[{id:'dragon',name:'Dragon',hp:5000,atk:120,reward:5000},{id:'leviathan',name:'Leviathan',hp:9000,atk:200,reward:11000}]
+};
+
+  let W3 = Object.assign({}, DEFAULT);
+  const $ = (id) => document.getElementById(id);
+
+  function ensureW3Container(){
+    if($('w3Embed')) return $('w3Embed');
+    const host = $('panelLeft') || document.body;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = "<div id=\"w3Embed\" class=\"hidden\"><style>#w3Embed .layout{display:grid;grid-template-columns:360px 1fr;gap:12px}\n#w3Embed .card{background:#111827;padding:12px;border-radius:8px}\n#w3Embed button{padding:6px 10px;border:none;border-radius:6px;background:#22c55e;color:#000;cursor:pointer;margin:2px}\n#w3Embed button.small{font-size:13px;padding:5px 8px}\n#w3Embed button.red{background:#ef4444;color:#fff}\n#w3Embed .muted{color:#9ca3af;font-size:13px}\n#w3Embed .progress{width:100%;height:18px;background:#222;border-radius:8px;overflow:hidden;margin-top:6px}\n#w3Embed .bar{height:100%;width:0%;background:green;transition:width 0.1s linear}</style><div class=\"card\"><h3>World 3 \u2014 Combat</h3></div>\n<h1>World 3 \u2014 Combat & Prestige (Clean Rebuild)</h1>\n<div class=\"layout\">\n<div>\n  <div class=\"card\">\n    <div>HP: <span id=\"w3_playerHp\"></span> / <span id=\"w3_playerMaxHp\"></span></div>\n    <div>Stamina: <span id=\"w3_playerStam\"></span> / <span id=\"w3_playerMaxStam\"></span></div>\n    <div>Trophies: <span id=\"w3_trophyCount\"></span></div>\n    <div>Prestige Points: <span id=\"w3_ppCount\"></span></div>\n    <hr>\n    <div id=\"w3_mobBox\">No mob selected</div>\n    <div id=\"w3_mobControls\"></div>\n    <div style=\"margin-top:8px\">\n      <button id=\"w3_attackBtn\" class=\"small red\">Attack</button>\n      <div id=\"w3_phaseInfo\" style=\"display:none;margin-top:6px\">\n        <div class=\"muted\">Time left: <span id=\"w3_miniTime\"></span>s \u2022 Clicks: <span id=\"w3_miniClicks\"></span></div>\n        <div class=\"progress\"><div id=\"w3_progressBar\" class=\"bar\"></div></div>\n      </div>\n    </div>\n  </div>\n\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Run Upgrades</h3>\n    <div id=\"w3_runUpgrades\"></div>\n  </div>\n\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Prestige</h3>\n    <div id=\"w3_prestigeArea\"></div>\n  </div>\n</div>\n\n<div>\n  <div class=\"card\">\n    <h3>Floors & Mobs</h3>\n    <div id=\"w3_floorMobs\"></div>\n    <div id=\"w3_floorShop\"></div>\n  </div>\n  <div class=\"card\" style=\"margin-top:12px\">\n    <h3>Prestige Shop</h3>\n    <div id=\"w3_prestigeShop\"></div>\n  </div>\n</div>\n</div>\n\n\n</div>";
+    const node = wrap.firstElementChild;
+    const marker = $('leftSub');
+    if(marker && marker.parentNode){ marker.parentNode.insertBefore(node, marker.nextSibling); }
+    else host.appendChild(node);
+    return node;
+  }
+
+  
+const DEFAULT_DUP_IGNORED = {
+  hp:100, maxHp:100,
+  stamina:10, maxStamina:10,
+  staminaRegenMs:4000,
+  hpRegenRate:0,
+  weaponLevel:0,
+  precisionLevel:0,
+  trophies:0,
+  pp:0,
+  damageMult:1,
+  trophyMult:1,
+  prestigeBoostMaxStam:0,
+  prestigeBoostRegen:0,
+  prestigeBoostMaxHp:0,
+  prestigeBoostHpRegen:0,
+  runUpgrades:{},
+  currentMob:null,
+  maxFloor:1,
+  lastRegen:Date.now()
+};
+
+let W3 = Object.assign({}, DEFAULT);
+
+const BASE_MOBS = {
+  1:[{id:'slime',name:'Slime',hp:30,atk:2,reward:15},{id:'goblin',name:'Goblin',hp:90,atk:4,reward:35}],
+  2:[{id:'orc',name:'Orc',hp:250,atk:10,reward:120},{id:'troll',name:'Troll',hp:400,atk:16,reward:200}],
+  3:[{id:'wyvern',name:'Wyvern',hp:1000,atk:30,reward:700},{id:'demon',name:'Demon',hp:1700,atk:50,reward:1200}],
+  4:[{id:'dragon',name:'Dragon',hp:5000,atk:120,reward:5000},{id:'leviathan',name:'Leviathan',hp:9000,atk:200,reward:11000}]
+};
+
+// ---------- Rendering ----------
+function w3_renderAll(){
+  document.getElementById('w3_playerHp').textContent = W3.hp;
+  document.getElementById('w3_playerMaxHp').textContent = W3.maxHp + (W3.prestigeBoostMaxHp||0);
+  document.getElementById('w3_playerStam').textContent = W3.stamina;
+  document.getElementById('w3_playerMaxStam').textContent = W3.maxStamina + (W3.prestigeBoostMaxStam||0);
+  document.getElementById('w3_trophyCount').textContent = W3.trophies;
+  document.getElementById('w3_ppCount').textContent = W3.pp;
+
+  w3_renderMobBox();
+  w3_renderRunUpgrades();
+  w3_renderPrestigeArea();
+  w3_renderFloors();
+  w3_renderPrestigeShop();
+}
+
+function w3_renderMobBox(){
+  const box=document.getElementById('w3_mobBox');
+  if(W3.currentMob){
+    box.innerHTML = W3.currentMob.name+" HP:"+W3.currentMob.hp;
+    document.getElementById('w3_mobControls').innerHTML='<button onclick="w3_flee()">Flee</button>';
+  } else {
+    let html='';
+    for(let f=1;f<=W3.maxFloor;f++){
+      html += '<div>Floor '+f+': ';
+      (BASE_MOBS[f]||[]).forEach(m=>{
+        html += '<button onclick="w3_enterMob('+f+',\''+m.id+'\')">'+m.name+'</button>';
+      });
+      html+='</div>';
+    }
+    box.innerHTML=html;
+    document.getElementById('w3_mobControls').innerHTML='';
+  }
+}
+
+function w3_renderRunUpgrades(){
+  const box=document.getElementById('w3_runUpgrades'); box.innerHTML='';
+  function addBtn(name,cost,level,fn){
+    let b=document.createElement('button');
+    b.textContent=name+" Lv."+level+" (Cost "+cost+")";
+    b.disabled=W3.trophies<cost;
+    b.onclick=()=>{ if(W3.trophies<cost) return; W3.trophies-=cost; fn(); w3_renderAll(); };
+    box.appendChild(b);
+  }
+  addBtn("Sharper Sword",100*Math.pow(2,W3.weaponLevel||0),W3.weaponLevel||0,()=>{W3.weaponLevel++;});
+  addBtn("Precision",100*Math.pow(2,W3.precisionLevel||0),W3.precisionLevel||0,()=>{W3.precisionLevel++;});
+  addBtn("Max Stamina",150*Math.pow(2,W3.runUpgrades.maxStam||0),W3.runUpgrades.maxStam||0,()=>{W3.runUpgrades.maxStam=(W3.runUpgrades.maxStam||0)+1;W3.maxStamina+=5;W3.stamina+=5;});
+  addBtn("Stamina Regen",200*Math.pow(2,W3.runUpgrades.regen||0),W3.runUpgrades.regen||0,()=>{W3.runUpgrades.regen=(W3.runUpgrades.regen||0)+1;W3.staminaRegenMs=Math.max(500,Math.floor(W3.staminaRegenMs*0.85));});
+  addBtn("Max HP",200*Math.pow(2,W3.runUpgrades.maxHp||0),W3.runUpgrades.maxHp||0,()=>{W3.runUpgrades.maxHp=(W3.runUpgrades.maxHp||0)+1;W3.maxHp+=20;W3.hp+=20;});
+  addBtn("HP Regen",250*Math.pow(2,W3.runUpgrades.hpRegen||0),W3.runUpgrades.hpRegen||0,()=>{W3.runUpgrades.hpRegen=(W3.runUpgrades.hpRegen||0)+1;W3.hpRegenRate=(W3.hpRegenRate||0)+2;});
+}
+
+function w3_renderPrestigeArea(){
+  const box=document.getElementById('w3_prestigeArea'); box.innerHTML='';
+  const b=document.createElement('button');
+  b.textContent="Prestige (5000 trophies = 1 PP)";
+  b.disabled=W3.trophies<5000;
+  b.onclick=()=>{let gain=Math.floor(W3.trophies/5000);W3.pp+=gain;W3.trophies=0;W3.weaponLevel=0;W3.precisionLevel=0;W3.runUpgrades={};W3.hp=W3.maxHp;W3.stamina=W3.maxStamina;W3.currentMob=null;alert("Prestiged +"+gain+" PP");w3_renderAll();};
+  box.appendChild(b);
+}
+
+function w3_renderFloors(){
+  const box=document.getElementById('w3_floorMobs'); box.innerHTML='';
+  for(let f=1;f<=W3.maxFloor;f++){
+    box.innerHTML+='<div>Floor '+f+' has '+(BASE_MOBS[f]||[]).map(m=>m.name).join(', ')+'</div>';
+  }
+  const shop=document.getElementById('w3_floorShop'); shop.innerHTML='';
+  let next=W3.maxFloor+1; let cost=Math.pow(5,next-1);
+  let b=document.createElement('button');
+  b.textContent="Unlock Floor "+next+" (Cost "+cost+" PP)";
+  b.disabled=W3.pp<cost;
+  b.onclick=()=>{if(W3.pp<cost)return;W3.pp-=cost;W3.maxFloor++;w3_renderAll();};
+  shop.appendChild(b);
+}
+
+function w3_renderPrestigeShop(){
+  const box=document.getElementById('w3_prestigeShop'); box.innerHTML='';
+  function addBtn(name,cost,desc,fn){
+    let b=document.createElement('button'); b.textContent=name+" (Cost "+cost+") "+desc; b.disabled=W3.pp<cost; b.onclick=()=>{if(W3.pp<cost)return;W3.pp-=cost;fn();w3_renderAll();}; box.appendChild(b);
+  }
+  addBtn("2x Damage",2,"x"+W3.damageMult,()=>{W3.damageMult*=2;});
+  addBtn("2x Trophies",2,"x"+W3.trophyMult,()=>{W3.trophyMult*=2;});
+  addBtn("+5 Max Stamina",3,"Owned "+W3.prestigeBoostMaxStam,()=>{W3.prestigeBoostMaxStam+=5;W3.maxStamina+=5;W3.stamina+=5;});
+  addBtn("+10% Stamina Regen",3,"Owned "+Math.round(W3.prestigeBoostRegen*100)+"%",()=>{W3.prestigeBoostRegen+=0.10;W3.staminaRegenMs=Math.max(300,Math.floor(W3.staminaRegenMs*0.9));});
+  addBtn("+20 Max HP",3,"Owned "+W3.prestigeBoostMaxHp,()=>{W3.prestigeBoostMaxHp+=20;W3.maxHp+=20;W3.hp+=20;});
+  addBtn("+2 HP Regen/5s",3,"Owned "+W3.prestigeBoostHpRegen,()=>{W3.prestigeBoostHpRegen+=2;});
+}
+
+// ---------- Combat ----------
+let miniActive=false, miniClicks=0, miniTimer=null;
+function w3_enterMob(f,id){ W3.currentMob=Object.assign({},(BASE_MOBS[f]||[]).find(x=>x.id==id)); w3_renderAll(); }
+function w3_flee(){ W3.currentMob=null; w3_renderAll(); }
+function w3_startAttackPhase(){
+  if(!W3.currentMob) return alert("Pick mob"); if(W3.stamina<=0) return alert("No stamina");
+  W3.stamina--; miniActive=true; miniClicks=0; let time=3;
+  document.getElementById('w3_phaseInfo').style.display='block';
+  document.getElementById('w3_miniTime').textContent=time; document.getElementById('w3_miniClicks').textContent=0;
+  const btn=document.getElementById('w3_attackBtn'); btn.textContent="Hit!"; btn.onclick=registerHit;
+  miniTimer=
+}
+function w3_registerHit(){ if(!miniActive)return; miniClicks++; document.getElementById('w3_miniClicks').textContent=miniClicks; document.getElementById('w3_progressBar').style.width=Math.min(100,(miniClicks/20)*100)+'%'; }
+function w3_endAttackPhase(){
+  clearInterval(miniTimer); miniTimer=null; miniActive=false;
+  document.getElementById('w3_phaseInfo').style.display='none'; document.getElementById('w3_progressBar').style.width='0%';
+  const btn=document.getElementById('w3_attackBtn'); btn.textContent="Attack"; btn.onclick=startAttackPhase;
+  if(!W3.currentMob) return;
+  let base=5+(W3.weaponLevel*3); let min=10+(W3.precisionLevel*5); let max=min+10; let scaled=min+(miniClicks/20)*(max-min); if(scaled>max)scaled=max;
+  let dmg=(base+Math.floor(scaled))*(W3.damageMult||1);
+  W3.currentMob.hp-=Math.floor(dmg);
+  if(W3.currentMob.hp<=0){ W3.trophies+=Math.floor(W3.currentMob.reward*(W3.trophyMult||1)); W3.currentMob=null; } else { W3.hp-=W3.currentMob.atk; if(W3.hp<=0){ W3.hp=W3.maxHp; W3.trophies=Math.max(0,Math.floor(W3.trophies*0.9)); } }
+  w3_renderAll();
+}
+
+// ---------- Regen ----------
 
 
+document.getElementById('w3_attackBtn').onclick=startAttackPhase;
+w3_renderAll();
+
+
+  window.W3 = W3;
+  window.w3_renderAll = w3_renderAll;
+  window.w3_startAttackPhase = w3_startAttackPhase;
+
+  function w3_tick(){
+    try { if(window.meta && meta.activeWorld==='w3') w3_renderAll(); } catch(e) {}
+  }
+
+  const _updateResourceUI = window.updateResourceUI;
+  window.updateResourceUI = function(){
+    if(_updateResourceUI) _updateResourceUI();
+    try{
+      const isW3 = (window.meta && meta.activeWorld==='w3');
+      const rg = $('resourceGrid'); if(rg) rg.classList.toggle('hidden', isW3);
+      const fe = $('fishingEmbed'); if(fe) fe.classList.toggle('hidden', isW3);
+      const w3 = ensureW3Container(); if(w3) w3.classList.toggle('hidden', !isW3);
+      if(isW3){
+        const wn=$('worldName'); if(wn) wn.textContent='World 3';
+        const lt=$('leftTitleText'); if(lt) lt.textContent='World 3';
+        const ls=$('leftSub'); if(ls) ls.textContent='Combat mode.';
+        const atk = $('w3_attackBtn');
+        if(atk && !atk.dataset.w3bound){ atk.dataset.w3bound='1'; atk.addEventListener('click', ()=> w3_startAttackPhase()); }
+        window.scrollTo({top:0, behavior:'instant'});
+      }
+    }catch(e){}
+  };
+
+  window.enterWorld3 = function(){
+    try{
+      if(!window.meta) return;
+      if(!meta.worldsUnlocked) meta.worldsUnlocked={w1:true,w2:false};
+      if(typeof meta.worldsUnlocked.w3==='undefined') meta.worldsUnlocked.w3 = true;
+      meta.activeWorld = 'w3';
+      ensureW3Container();
+      if(window.renderAll) renderAll();
+      if(window.updateAll) updateAll();
+      if(window.saveLocal) saveLocal();
+      window.scrollTo({top:0, behavior:'smooth'});
+    }catch(e){}
+  };
+
+  const tab = $('tabWorlds'); if(tab) tab.addEventListener('click', ()=> setTimeout(()=>{ if($('enterW3')) $('enterW3').onclick = window.enterWorld3; }, 50));
+
+  setInterval(w3_tick, 1000);
+})();
+</script>
 
 
 <style>
@@ -2791,10 +3356,131 @@ body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
 #w3Embed { margin-top: 8px; }
 body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
 </style>
+<script type="module">
+// Full-screen World 3 swap without touching prior code
+(function(){
+  const $ = (id) => document.getElementById(id);
+
+  function ensureW3Embed(){
+    let el = $('w3Embed');
+    if(!el){
+      const host = $('panelLeft') || document.body;
+      const wrap = document.createElement('div');
+      wrap.id = 'w3Embed';
+      wrap.className = 'card';
+      wrap.innerHTML = '<h3>World 3</h3><div class="small-muted">Loading combat UI…</div>';
+      // place right after the left subtitle if present
+      const marker = $('leftSub');
+      if(marker && marker.parentNode){ marker.parentNode.insertBefore(wrap, marker.nextSibling); }
+      else host.prepend(wrap);
+      el = wrap;
+    }
+    return el;
+  }
+
+  function hide(el, yes){
+    if(!el) return;
+    el.classList.toggle('hidden', !!yes);
+  }
+
+  function showWorld3(){
+    // Make sure the W3 container exists/visible
+    const w3 = ensureW3Embed();
+    // Theme change
+    document.body.classList.add('theme-w3');
+    document.body.classList.remove('theme-w1');
+    document.body.classList.remove('theme-w2');
+    // Hide W1/W2 left content
+    hide($('resourceGrid'), true);
+    hide($('fishingEmbed'), true);
+    hide(w3, false);
+
+    // Hide all right panels & tabs to mimic full world swap
+    const panelIds = ['panelShop','panelUnlocks','panelUnique','panelGarden','panelPrestige','panelWorlds','panelLeaderboard','panelAchievements','panelQuests'];
+    const tabIds   = ['tabShop','tabUnlocks','tabUnique','tabGarden','tabPrestige','tabWorlds','tabLeaderboard','tabAchievements','tabQuests'];
+    panelIds.forEach(id=> hide($(id), true));
+    tabIds.forEach(id=> hide($(id), true));
+
+    // Update headings
+    const wn = $('worldName'); if(wn) wn.textContent = 'World 3';
+    const lt = $('leftTitleText'); if(lt) lt.textContent = 'World 3';
+    const ls = $('leftSub'); if(ls) ls.textContent = 'Combat mode.';
+
+    // Scroll to top so UI isn't hidden at bottom
+    try { window.scrollTo({top:0, behavior:'smooth'}); } catch(e){}
+  }
+
+  // Global click delegation for any "Enter World 3" button
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(!t) return;
+    const isBtn = (t.id === 'enterW3') || (t.dataset && (t.dataset.w3enter === '1')) ||
+                  (/enter world 3/i.test(t.textContent || ''));
+    if(isBtn){
+      e.preventDefault();
+      showWorld3();
+    }
+  });
+
+  // Also attempt to show when URL hash is #w3 (optional)
+  if(location.hash === '#w3'){ showWorld3(); }
+
+  // If a prior script exposed enterWorld3(), reuse it
+  if(typeof window.enterWorld3 === 'function'){
+    const _enter = window.enterWorld3;
+    window.enterWorld3 = function(){ _enter(); showWorld3(); };
+  }
+})();
+</script>
 
 
+<script type="module">
+// Ensure entering World 3 truly switches the *active* world and renders full W3 UI
+(function(){
+  function goWorld3(){
+    try{
+      // Switch active world
+      if(window.meta){
+        if(!meta.worldsUnlocked) meta.worldsUnlocked = { w1:true, w2:false };
+        meta.worldsUnlocked.w3 = true;
+        meta.activeWorld = 'w3';
+      }
+      // Trigger full UI cycle
+      if(window.renderAll) renderAll();
+      if(window.updateAll) updateAll();
+      if(window.saveLocal) saveLocal();
+      // Ensure fishing is hidden and W3 render runs if available
+      const fe = document.getElementById('fishingEmbed'); if(fe) fe.classList.add('hidden');
+      const rg = document.getElementById('resourceGrid'); if(rg) rg.classList.add('hidden');
+      if(window.w3_renderAll) try{ w3_renderAll(); }catch(e){}
+      // Top of screen
+      try { window.scrollTo({top:0, behavior:'smooth'}); } catch(e){}
+    }catch(e){}
+  }
 
+  // Bind any Enter World 3 buttons (even if added later)
+  function wire(){
+    const btns = Array.from(document.querySelectorAll('#enterW3, [data-w3enter="1"]'));
+    btns.forEach(b=>{
+      if(b.dataset._w3bound2) return;
+      b.dataset._w3bound2 = '1';
+      b.addEventListener('click', (e)=>{ e.preventDefault(); goWorld3(); });
+    });
+  }
 
+  // Initial + delayed binds
+  wire();
+  setTimeout(wire, 200);
+  setTimeout(wire, 800);
+
+  // Re-bind when switching to Worlds tab
+  const tab = document.getElementById('tabWorlds');
+  if(tab) tab.addEventListener('click', ()=>{ setTimeout(wire, 0); setTimeout(wire, 250); });
+
+  // Optional: URL hash trigger
+  if(location.hash === '#w3'){ goWorld3(); }
+})();
+</script>
 
 
 
@@ -2868,7 +3554,292 @@ body.theme-w3 #w3Full { display:block; }
 #w3Full progress { width:100%; height:10px; }
 </style>
 
+<script type="module">
+(function(){
+  const $ = (id)=>document.getElementById(id);
 
+  // Insert W3 container near top of left panel (below subtitle)
+  function ensureW3(){
+    if($('w3Full')) return $('w3Full');
+    const host = $('panelLeft') || document.body;
+    const wrap = document.createElement('div');
+    wrap.id = 'w3Full';
+    wrap.className = 'card';
+    wrap.innerHTML = `
+      <h3>World 3 — Combat</h3>
+      <div class="muted">Fight mobs, earn trophies, unlock floors. <strong>Each floor has 2 tougher mobs.</strong></div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">
+        <div>Floor: <span id="w3_floor" class="stat">1</span> / <span id="w3_floorMax" class="stat">1</span></div>
+        <div class="row">
+          <button id="w3_prevFloor" class="upg" style="padding:6px 10px"><strong>◀ Prev Floor</strong></button>
+          <button id="w3_nextFloor" class="upg" style="padding:6px 10px"><strong>Next Floor ▶</strong></button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="w3_unlockFloor" class="upg">
+          <div><strong>Unlock Next Floor</strong></div>
+          <div class="muted" id="w3_unlockCost">Cost: — trophies</div>
+        </button>
+      </div>
+      <div class="w3-grid" style="margin-top:8px">
+        <div class="card">
+          <div class="row" style="justify-content:space-between">
+            <div>HP: <span id="w3_hp" class="stat">0</span>/<span id="w3_hpmax" class="stat">0</span></div>
+            <div>Stamina: <span id="w3_stam" class="stat">0</span>/<span id="w3_stammax" class="stat">0</span></div>
+          </div>
+          <div class="row" style="margin:6px 0">
+            <progress id="w3_hpbar" value="0" max="100"></progress>
+          </div>
+          <div id="w3_mobBox" class="card" style="margin-top:8px">
+            <div class="row" style="justify-content:space-between">
+              <div><strong id="w3_mobName">Mob</strong></div>
+              <div>HP: <span id="w3_mobHp">0</span>/<span id="w3_mobHpMax">0</span></div>
+            </div>
+            <progress id="w3_mobBar" value="0" max="100"></progress>
+            <div class="muted" id="w3_floorInfo" style="margin-top:6px">Floor 1</div>
+            <div class="row" style="margin-top:8px">
+              <button id="w3_attack" class="upg" style="text-align:center">
+                <div><strong>Attack</strong></div>
+                <div class="muted">Deal damage equal to your <strong>Power</strong> (costs 1 Stamina)</div>
+              </button>
+              <button id="w3_flee" class="upg" style="text-align:center">
+                <div><strong>Flee</strong></div>
+                <div class="muted">Swap to the other mob on this floor</div>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div><strong>Trophies:</strong> <span id="w3_trophies" class="stat">0</span></div>
+          <div class="muted" style="margin:4px 0 8px 0;">Use trophies to upgrade your run or unlock more floors.</div>
+          <div class="grid2">
+            <button id="w3_upg_power" class="upg">
+              <div><strong>Power +2</strong></div>
+              <div class="muted">Attacks deal <strong>+2 damage</strong> per level</div>
+              <div class="muted" id="w3_cost_power">Cost: 5</div>
+            </button>
+            <button id="w3_upg_stamina" class="upg">
+              <div><strong>Max Stamina +2</strong></div>
+              <div class="muted">Perform <strong>more attacks</strong> before resting</div>
+              <div class="muted" id="w3_cost_stamina">Cost: 6</div>
+            </button>
+            <button id="w3_upg_regen" class="upg">
+              <div><strong>Regen Faster</strong></div>
+              <div class="muted">Stamina regenerates <strong>0.2s faster</strong> per level (min 0.4s)</div>
+              <div class="muted" id="w3_cost_regen">Cost: 8</div>
+            </button>
+            <button id="w3_upg_hp" class="upg">
+              <div><strong>Max HP +10</strong></div>
+              <div class="muted">Gain <strong>+10 HP</strong> per level</div>
+              <div class="muted" id="w3_cost_hp">Cost: 7</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    const marker = $('leftSub');
+    if(marker && marker.parentNode) marker.parentNode.insertBefore(wrap, marker.nextSibling);
+    else host.prepend(wrap);
+    return wrap;
+  }
+
+  // Base mobs (expanded and sorted by HP asc for 6 floors / 12 mobs total)
+  const BASE_MOBS = [
+    {name:'Slime', hp:30, reward:3},
+    {name:'Blue Slime', hp:40, reward:4},
+    {name:'Wolf', hp:50, reward:5},
+    {name:'Boar', hp:80, reward:7},
+    {name:'Ogre', hp:120, reward:12},
+    {name:'Golem', hp:200, reward:18},
+    {name:'Dragon Whelp', hp:350, reward:30},
+    {name:'Wyvern', hp:480, reward:40},
+    {name:'Hydra', hp:650, reward:55},
+    {name:'Ancient Drake', hp:900, reward:80},
+    {name:'Titan', hp:1200, reward:120},
+    {name:'Elder Lich', hp:1600, reward:180}
+  ].sort((a,b)=>a.hp-b.hp);
+
+  // Group into floors of 2 mobs each
+  function floorsFromMobs(list){
+    const f=[];
+    for(let i=0;i<list.length;i+=2){
+      f.push(list.slice(i,i+2));
+    }
+    return f;
+  }
+
+  const FLOORS = floorsFromMobs(BASE_MOBS);
+  // Unlock costs: floor2=70, floor3=180, plus three more floors: 750, 2300, 5000
+  const UNLOCK_COSTS = [70, 180, 750, 2300, 5000];
+
+  const W3 = {
+    hp: 60, hpMax: 60,
+    stam: 10, stamMax: 10,
+    regenMs: 1200, lastRegen: Date.now(),
+    power: 5,
+    trophies: 0,
+    // floors
+    unlockedFloors: 1,   // start with Floor 1
+    currentFloor: 1,     // 1-based
+    mobIdx: 0
+  };
+
+  function currentFloorMobs(){
+    const idx = Math.max(1, Math.min(W3.currentFloor, W3.unlockedFloors)) - 1; // zero-based
+    return FLOORS[idx] || [];
+  }
+  function currentMob(){
+    const mobs = currentFloorMobs();
+    if(mobs.length===0) return null;
+    return mobs[Math.max(0, Math.min(W3.mobIdx, mobs.length-1))];
+  }
+
+  // Runtime hp for current mob
+  const runtime = { mobHp: (currentFloorMobs()[0]||{hp:0}).hp };
+
+  function setMob(index){
+    const mobs = currentFloorMobs();
+    if(mobs.length===0) return;
+    W3.mobIdx = ((index% mobs.length)+mobs.length)%mobs.length;
+    runtime.mobHp = mobs[W3.mobIdx].hp;
+  }
+  function nextMob(){ setMob(W3.mobIdx + 1); }
+
+  function unlockNextFloor(){
+    const next = W3.unlockedFloors + 1;
+    const cost = UNLOCK_COSTS[next-2]; // floor 2 -> index0, etc.
+    if(!cost) return; // no further floors defined
+    if(W3.trophies < cost) return;
+    W3.trophies -= cost;
+    W3.unlockedFloors = next;
+    W3.currentFloor = next;
+    setMob(0);
+    render();
+  }
+
+  function render(){
+    ensureW3();
+    // Player
+    $('w3_hp').textContent = W3.hp;
+    $('w3_hpmax').textContent = W3.hpMax;
+    $('w3_hpbar').max = W3.hpMax;
+    $('w3_hpbar').value = W3.hp;
+
+    $('w3_stam').textContent = W3.stam;
+    $('w3_stammax').textContent = W3.stamMax;
+
+    // Floor info
+    $('w3_floor').textContent = W3.currentFloor;
+    $('w3_floorMax').textContent = W3.unlockedFloors;
+    $('w3_floorInfo').textContent = 'Floor ' + W3.currentFloor;
+
+    // Unlock button
+    const next = W3.unlockedFloors + 1;
+    const cost = UNLOCK_COSTS[next-2];
+    const btn = $('w3_unlockFloor');
+    const costEl = $('w3_unlockCost');
+    if(cost){
+      btn.disabled = W3.trophies < cost;
+      costEl.textContent = 'Cost: ' + cost + ' trophies';
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden'); // no more floors to unlock
+    }
+
+    // Mob box
+    const m = currentMob();
+    if(m){
+      $('w3_mobName').textContent = m.name;
+      $('w3_mobHp').textContent = runtime.mobHp;
+      $('w3_mobHpMax').textContent = m.hp;
+      $('w3_mobBar').max = m.hp;
+      $('w3_mobBar').value = runtime.mobHp;
+    }
+
+    // Trophies & Costs
+    $('w3_trophies').textContent = W3.trophies;
+    $('w3_cost_power').textContent = 'Cost: ' + (5 + W3.power);
+    $('w3_cost_stamina').textContent = 'Cost: ' + (6 + Math.floor((W3.stamMax-10)/2)*2);
+    $('w3_cost_regen').textContent = 'Cost: ' + Math.max(8 - Math.floor((1600 - W3.regenMs)/200), 4);
+    $('w3_cost_hp').textContent = 'Cost: ' + (7 + Math.floor((W3.hpMax-60)/10)*3);
+
+    // Floor nav buttons
+    const prev = $('w3_prevFloor');
+    const nextbtn = $('w3_nextFloor');
+    prev.disabled = (W3.currentFloor <= 1);
+    nextbtn.disabled = (W3.currentFloor >= W3.unlockedFloors);
+  }
+
+  function attack(){
+    if(W3.stam <= 0) return;
+    const m = currentMob(); if(!m) return;
+    W3.stam -= 1;
+    runtime.mobHp = Math.max(0, runtime.mobHp - W3.power);
+    if(runtime.mobHp <= 0){
+      W3.trophies += m.reward;
+      nextMob(); // rotate to other mob on same floor
+    }
+    render();
+  }
+  function flee(){ nextMob(); render(); }
+
+  function tick(){
+    const now = Date.now();
+    if(now - W3.lastRegen >= W3.regenMs){
+      const ticks = Math.floor((now - W3.lastRegen)/W3.regenMs);
+      W3.stam = Math.min(W3.stamMax, W3.stam + ticks);
+      W3.lastRegen = now;
+      render();
+    }
+  }
+
+  function buy(cost, fn){
+    if(W3.trophies < cost) return;
+    W3.trophies -= cost;
+    fn();
+    render();
+  }
+
+  function bind(){
+    const el = ensureW3();
+    el.querySelector('#w3_attack').onclick = attack;
+    el.querySelector('#w3_flee').onclick = flee;
+    el.querySelector('#w3_upg_power').onclick = ()=> buy(5 + W3.power, ()=> W3.power += 2);
+    el.querySelector('#w3_upg_stamina').onclick = ()=> buy(6 + Math.floor((W3.stamMax-10)/2)*2, ()=> W3.stamMax += 2);
+    el.querySelector('#w3_upg_regen').onclick = ()=> buy(Math.max(8 - Math.floor((1600 - W3.regenMs)/200), 4), ()=> W3.regenMs = Math.max(400, W3.regenMs - 200));
+    el.querySelector('#w3_upg_hp').onclick = ()=> buy(7 + Math.floor((W3.hpMax-60)/10)*3, ()=> W3.hpMax += 10);
+    el.querySelector('#w3_unlockFloor').onclick = unlockNextFloor;
+    el.querySelector('#w3_prevFloor').onclick = ()=>{ if(W3.currentFloor>1){ W3.currentFloor--; setMob(0); render(); } };
+    el.querySelector('#w3_nextFloor').onclick = ()=>{ if(W3.currentFloor<W3.unlockedFloors){ W3.currentFloor++; setMob(0); render(); } };
+  }
+
+  // Entry: make the screen full W3 with dark theme
+  function enterW3(){
+    document.body.classList.add('theme-w3');
+    const wn = $('worldName'); if(wn) wn.textContent = 'World 3';
+    const lt = $('leftTitleText'); if(lt) lt.textContent = 'World 3';
+    const ls = $('leftSub'); if(ls) ls.textContent = 'Combat mode.';
+    ensureW3();
+    setMob(0);
+    render();
+    bind();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  // Click delegation: any "Enter World 3" button
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(!t) return;
+    if(t.id==='enterW3' || /enter world 3/i.test(t.textContent||'')){
+      e.preventDefault();
+      enterW3();
+    }
+  });
+  if(location.hash === '#w3'){ enterW3(); }
+
+  setInterval(tick, 250);
+})();
+</script>
 
 
 
@@ -2882,14 +3853,954 @@ body.theme-w3 header .muted { display:none !important; }
 #w3_worldTabs .w3-tab:hover { filter:brightness(1.1); }
 </style>
 
+<script type="module">
+(function(){
+  const $ = (id)=>document.getElementById(id);
+
+  function ensureMidWorldTabs(){
+    const root = $('w3Full');
+    if(!root) return;
+    // Remove old top back-row if present
+    const old = $('w3_backRow'); if(old && old.parentNode) old.parentNode.removeChild(old);
+    if($('w3_worldTabs')) return;
+
+    const tabs = document.createElement('div');
+    tabs.id = 'w3_worldTabs';
+    tabs.innerHTML = `
+      <button class="w3-tab" id="w3_go_w1"><strong>World 1</strong></button>
+      <button class="w3-tab" id="w3_go_w2"><strong>World 2</strong></button>
+    `;
+
+    // Insert roughly in the middle: after the unlock row and before the grid
+    const after = root.querySelector('#w3_unlockFloor')?.closest('.row');
+    const grid  = root.querySelector('.w3-grid');
+    if(after && grid && grid.parentNode === root){
+      root.insertBefore(tabs, grid);
+    } else {
+      root.appendChild(tabs);
+    }
+
+    const leaveTo = (id)=>{
+      try{
+        document.body.classList.remove('theme-w3');
+        if(window.meta){
+          meta.activeWorld = id;
+          if(window.renderAll) renderAll();
+          if(window.updateAll) updateAll();
+          if(window.saveLocal) saveLocal();
+        }
+        window.scrollTo({top:0, behavior:'smooth'});
+      }catch(e){}
+    };
+
+    $('w3_go_w1').onclick = ()=> leaveTo('w1');
+    $('w3_go_w2').onclick = ()=> leaveTo('w2');
+  }
+
+  // Build when W3 is entered and on load (in case already there)
+  ensureMidWorldTabs();
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && (t.id==='enterW3' || /enter world 3/i.test(t.textContent||''))){
+      setTimeout(ensureMidWorldTabs, 80);
+    }
+  });
+})();
+</script>
 
 
+<script type="module">
+// Robust world-leave handler to fix: (1) W1 button going to W2, (2) missing tabs in W2.
+(function(){
+  const $ = (id)=>document.getElementById(id);
+
+  function unhideAllTabsAndPanels(){
+    const ids = ['panelShop','panelUnlocks','panelUnique','panelGarden','panelPrestige','panelWorlds','panelLeaderboard','panelAchievements','panelQuests',
+                 'tabShop','tabUnlocks','tabUnique','tabGarden','tabPrestige','tabWorlds','tabLeaderboard','tabAchievements','tabQuests'];
+    ids.forEach(id=>{ const el = $(id); if(el){ el.classList.remove('hidden'); el.style.display = ''; } });
+  }
+
+  function hideW3UIs(){
+    const el1 = $('w3Full'); if(el1) el1.style.display = 'none';
+    const el2 = $('w3Embed'); if(el2) el2.classList.add('hidden');
+    document.body.classList.remove('theme-w3');
+  }
+
+  function showDefaultFor(world){
+    try{
+      if(world === 'w2'){
+        if(window.showPanel) showPanel('prestige'); // W2 main interaction
+      }else{
+        if(window.showPanel) showPanel('shop');     // W1 main shop
+      }
+    }catch(e){}
+  }
+
+  function goWorld(id){
+    try{
+      // Core switch
+      if(window.meta){
+        meta.activeWorld = id;
+      }
+      hideW3UIs();
+      unhideAllTabsAndPanels();
+
+      if(window.renderAll) renderAll();
+      if(window.updateAll) updateAll();
+      if(window.saveLocal) saveLocal();
+      showDefaultFor(id);
+
+      // Ensure W2 header blurb visible outside W3
+      // (we already scope the hide rule to theme-w3, but double-safe here)
+      try{
+        const hdrMuted = document.querySelector('header .muted');
+        if(hdrMuted) hdrMuted.style.display = '';
+      }catch(e){}
+
+      window.scrollTo({top:0, behavior:'smooth'});
+    }catch(e){}
+  }
+
+  // Bind (and re-bind) our W1/W2 buttons with stopPropagation
+  function wireLeaveButtons(){
+    const b1 = document.getElementById('w3_go_w1');
+    const b2 = document.getElementById('w3_go_w2');
+    if(b1 && !b1._wired){
+      const handler = (e)=>{ e.preventDefault(); e.stopPropagation(); if(e.stopImmediatePropagation) e.stopImmediatePropagation(); goWorld('w1'); };
+      b1.addEventListener('click', handler);
+      b1.addEventListener('pointerdown', handler, {once:false});
+      b1._wired = true;
+    }
+    if(b2 && !b2._wired){
+      const handler = (e)=>{ e.preventDefault(); e.stopPropagation(); if(e.stopImmediatePropagation) e.stopImmediatePropagation(); goWorld('w2'); };
+      b2.addEventListener('click', handler);
+      b2.addEventListener('pointerdown', handler, {once:false});
+      b2._wired = true;
+    }
+  }
+
+  // Initial + delayed wire-ups
+  wireLeaveButtons();
+  setTimeout(wireLeaveButtons, 50);
+  setTimeout(wireLeaveButtons, 250);
+
+  // Also rewire on any click to Enter World 3 (after W3 UI is drawn)
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && (t.id==='enterW3' || /enter world 3/i.test(t.textContent||''))){
+      setTimeout(wireLeaveButtons, 100);
+    }
+  });
+})();
+</script>
 
 
+<script type="module">
+// Ensure W3 UI becomes visible whenever re-entering World 3.
+(function(){
+  const $ = (id)=>document.getElementById(id);
+  function unhideW3(){
+    const el = $('w3Full');
+    if(el){
+      el.style.display = '';          // clear any inline "display:none"
+      el.classList.remove('hidden');  // in case a class was added
+    }
+  }
+  // When clicking "Enter World 3", force unhide shortly after UI builds
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && (t.id==='enterW3' || /enter world 3/i.test(t.textContent||''))){
+      setTimeout(unhideW3, 60);
+      setTimeout(unhideW3, 250);
+    }
+  });
+  // Safety: brief timer to correct hidden state if already in W3
+  let attempts = 0;
+  const safety = setInterval(()=>{
+    attempts++;
+    if(document.body.classList.contains('theme-w3')) unhideW3();
+    if(attempts > 25) clearInterval(safety);
+  }, 200);
+})();
+</script>
 
 
+<!-- === W3 Auto Attack + Regen/Power Stats Patch (non-destructive) === -->
+<script>
+(() => {
+  if (window.__w3AutoPatchApplied) return;
+  window.__w3AutoPatchApplied = true;
 
+  // Helpers
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n||0).toLocaleString();
 
+  // Compute estimated "normal" click damage used for auto-attack quartering
+  function w3_estimatedClickDamage(w3){
+    if(!w3) return 0;
+    // Mirror the core combat math (approximate average mini-game result)
+    const base = 5 + (Number(w3.weaponLevel)||0) * 3;             // matches core: base = 5 + weaponLevel*3
+    const min  = 10 + (Number(w3.precisionLevel)||0) * 5;         // matches core: min = 10 + precisionLevel*5
+    const avgScaled = min + 5;                                     // average between [min, min+10]
+    const mult = Number(w3.damageMult)||1;
+    return Math.floor((base + Math.floor(avgScaled)) * mult);
+  }
+
+  function w3_autoCost(level){
+    return Math.max(1, Math.floor(10 * Math.pow(1.7, Number(level)||0)));
+  }
+  function w3_autoIntervalMs(level){
+    const start = 5000, step = 300, minMs = 330;
+    return Math.max(minMs, start - step * (Number(level)||0));
+  }
+  function ensureW3(){
+    // Try common containers the base file uses
+    return $('w3Full') || $('w3Embed') || $('panelLeft');
+  }
+
+  function ensureCards(){
+    const host = ensureW3();
+    if(!host) return null;
+
+    // Stats strip (regen speed + power)
+    if(!$('w3_statsBox')){
+      const stats = document.createElement('div');
+      stats.id = 'w3_statsBox';
+      stats.className = 'card';
+      stats.style.marginTop = '8px';
+      stats.innerHTML = `
+        <div class="row" style="justify-content:space-between">
+          <div class="small-muted">Regen speed: <strong id="w3_regenSpeed">—</strong> / tick</div>
+          <div class="small-muted">Power: <strong id="w3_powerVal">—</strong></div>
+        </div>
+      `;
+      host.appendChild(stats);
+    }
+
+    // Auto Attack upgrade card
+    if(!$('w3_autoCard')){
+      const auto = document.createElement('div');
+      auto.id = 'w3_autoCard';
+      auto.className = 'card';
+      auto.style.marginTop = '8px';
+      auto.innerHTML = `
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div>
+            <div><strong>Auto Attack</strong></div>
+            <div class="muted">Hits your current mob automatically without using stamina.</div>
+            <div class="small-muted">Damage: <span id="w3_autoDmg">—</span> (¼ of your normal click)</div>
+            <div class="small-muted">Interval: <span id="w3_autoInt">—</span> (min 0.33s) • Level: <span id="w3_autoLvl">0</span></div>
+          </div>
+          <div>
+            <button id="w3_buyAuto" class="upg"><strong id="w3_autoCost">Buy — 10 🏆</strong></button>
+          </div>
+        </div>
+      `;
+      host.appendChild(auto);
+
+      auto.addEventListener('click', (e)=>{
+        if(e.target && (e.target.id === 'w3_buyAuto' || e.target.id === 'w3_autoCost')){
+          try{
+            const mod = window.W3Module;
+            if(!mod || !mod.getState) return;
+            const s = mod.getState();
+            if(typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+            const cost = w3_autoCost(s.autoAtkLevel);
+            if((s.trophies||0) < cost) return; // not enough
+            s.trophies -= cost;
+            s.autoAtkLevel += 1;
+            if(!s._autoLast) s._autoLast = Date.now();
+            if(mod.setState) mod.setState(s);
+          }catch(_){}
+        }
+      });
+    }
+    return host;
+  }
+
+  function renderExtras(){
+    const host = ensureCards();
+    if(!host) return;
+    try{
+      const mod = window.W3Module;
+      if(!mod || !mod.getState) return;
+      const s = mod.getState();
+
+      // Regen speed (seconds per +1 stamina)
+      // Base logic in core: regenMs = max(300, floor(staminaRegenMs * (1 - prestigeBoostRegen)))
+      const baseMs = Math.max(300, Math.floor((Number(s.staminaRegenMs)||4000) * (1 - (Number(s.prestigeBoostRegen)||0))));
+      const regenSpeedEl = $('w3_regenSpeed'); if(regenSpeedEl) regenSpeedEl.textContent = (baseMs/1000).toFixed(2) + 's';
+
+      // Estimated Power (normal click damage)
+      const est = w3_estimatedClickDamage(s);
+      const powerEl = $('w3_powerVal'); if(powerEl) powerEl.textContent = fmt(est);
+
+      // Auto stats
+      const lvl = Number(s.autoAtkLevel||0);
+      const intMs = w3_autoIntervalMs(lvl);
+      const dmg = Math.max(1, Math.floor(est/4));
+      const lvlEl = $('w3_autoLvl'); if(lvlEl) lvlEl.textContent = fmt(lvl);
+      const intEl = $('w3_autoInt'); if(intEl) intEl.textContent = (intMs/1000).toFixed(2) + 's';
+      const dmgEl = $('w3_autoDmg'); if(dmgEl) dmgEl.textContent = fmt(dmg);
+      const costEl = $('w3_autoCost'); if(costEl) costEl.textContent = 'Buy — ' + fmt(w3_autoCost(lvl)) + ' 🏆';
+    }catch(_){}
+  }
+
+  // Wrap the module's render to keep our UI in sync
+  const _w3_renderAll = window.w3_renderAll;
+  if(typeof _w3_renderAll === 'function'){
+    window.w3_renderAll = function(){
+      try{ _w3_renderAll(); }catch(_){}
+      renderExtras();
+    };
+  }else{
+    // Fallback: periodic refresh if the module isn't exported yet
+    document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(renderExtras, 500); setInterval(renderExtras, 1000); });
+  }
+
+  // Auto-attack engine
+  function autoLoop(){
+    try{
+      const mod = window.W3Module;
+      if(!mod || !mod.getState || !mod.setState) return;
+      const s = mod.getState();
+      if(typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+      if(s.autoAtkLevel <= 0) return;
+
+      const now = Date.now();
+      const needed = w3_autoIntervalMs(s.autoAtkLevel);
+      if(!s._autoLast) s._autoLast = now;
+      if(now - s._autoLast < needed) return;
+      s._autoLast = now;
+
+      // Attack current mob (no stamina)
+      if(!s.currentMob || !s.currentMob.hp || s.currentMob.hp <= 0){
+        // nothing to hit
+        if(mod.setState) mod.setState(s);
+        return;
+      }
+      const est = w3_estimatedClickDamage(s);
+      const dmg = Math.max(1, Math.floor(est/4));
+      s.currentMob.hp = Math.max(0, Math.floor(s.currentMob.hp - dmg));
+
+      if(s.currentMob.hp <= 0){
+        // Award trophies like core
+        const mult = Number(s.trophyMult)||1;
+        const reward = Math.floor((s.currentMob.reward||0) * mult);
+        s.trophies = Math.max(0, (s.trophies||0) + reward);
+        // Simple respawn same mob at max HP
+        s.currentMob.hp = s.currentMob.maxHp;
+      }
+
+      if(mod.setState) mod.setState(s);
+    }catch(_){}
+  }
+
+  setInterval(autoLoop, 100); // smooth engine
+  // Initial paint attempt
+  if(document.readyState !== 'loading') { ensureCards(); renderExtras(); }
+  else document.addEventListener('DOMContentLoaded', () => { ensureCards(); renderExtras(); });
+})();
+</script>
+<!-- === End Patch === -->
+
+<!-- === Stability Fix Patch for World 1 click -> World 3 & W3 flashing === -->
+<script>
+(() => {
+  if (window.__w3StabilityPatch) return;
+  window.__w3StabilityPatch = true;
+
+  // Utility to wait for an element
+  function waitForEl(id, cb){
+    const el = document.getElementById(id);
+    if(el){ cb(el); return; }
+    const obs = new MutationObserver(() => {
+      const e = document.getElementById(id);
+      if(e){ try{ cb(e); }finally{ obs.disconnect(); } }
+    });
+    obs.observe(document.documentElement, {childList:true, subtree:true});
+  }
+
+  // 1) Ensure the World 3 container truly doesn't intercept clicks when hidden.
+  //    We force display:none when not in World 3, and display:block when active.
+  function hardToggleW3Display(){
+    const box = document.getElementById('w3CombatEmbed');
+    const meta = window.meta || {};
+    if(!box) return;
+    const isW3 = meta.activeWorld === 'w3';
+    box.style.display = isW3 ? 'block' : 'none';
+    box.style.pointerEvents = isW3 ? 'auto' : 'none';
+  }
+
+  // 2) Stop click bubbling from the W3 container so base-page generic click handlers
+  //    can't misinterpret clicks and flip worlds or cause flashes.
+  function stopBubbling(el){
+    if(!el) return;
+    el.addEventListener('click', (ev) => {
+      // Only allow our specific buttons to bubble if needed
+      const id = ev.target && ev.target.id;
+      const allowed = id === 'w3AttackBtn' || id === 'w3SellBtn' || id === 'w3AutoUpBtn' || id === 'enterW3' || id === 'unlockW3';
+      if(!allowed){
+        ev.stopPropagation();
+      }
+    }, true); // capture phase to be safe
+  }
+
+  // 3) Patch render/update wrappers (if our earlier patch exists) to call hardToggleW3Display
+  const _r = window.renderAll;
+  if(typeof _r === 'function'){
+    window.renderAll = function(){
+      try{ _r.apply(this, arguments); }catch(_){}
+      try{ hardToggleW3Display(); }catch(_){}
+    };
+  } else {
+    document.addEventListener('DOMContentLoaded', () => setInterval(hardToggleW3Display, 250));
+  }
+
+  // Also run on load and when the element appears
+  document.addEventListener('DOMContentLoaded', () => {
+    hardToggleW3Display();
+    waitForEl('w3CombatEmbed', (el) => {
+      // Default hidden
+      el.style.display = 'none';
+      el.style.pointerEvents = 'none';
+      stopBubbling(el);
+    });
+  });
+
+  // 4) Prevent accidental world flip from generic background clicks on World 1 panels.
+  //    If the click target is the BODY/HTML or a container without a data-action, stop bubbling.
+  document.addEventListener('click', (ev) => {
+    try{
+      const meta = window.meta || {};
+      const t = ev.target;
+      const isWorldSwitchBtn = t && (t.id === 'enterW1' || t.id === 'enterW2' || t.id === 'enterW3' || t.closest && t.closest('#enterW1,#enterW2,#enterW3'));
+      const inWorldsTab = t && (t.id === 'worldsBox' || (t.closest && t.closest('#worldsBox')));
+      if(isWorldSwitchBtn || inWorldsTab) return; // allow proper switching
+
+      // If base page is listening for generic clicks to toggle worlds, block those.
+      // Only do this when current world is W1 or W3 to fix the reported issues.
+      if(meta.activeWorld === 'w1' || meta.activeWorld === 'w3'){
+        // Permit clicks inside explicit interactive elements
+        const interactive = t.closest && t.closest('button, a, input, select, textarea, .upg, .btn, .tab, .world-card');
+        if(!interactive){
+          ev.stopPropagation();
+        }
+      }
+    }catch(_){}
+  }, true);
+})();
+</script>
+<!-- === End Stability Fix Patch === -->
+
+<!-- === Robust Guard + Adaptive Auto Attack/Stats Patch (v4) === -->
+<script>
+(() => {
+  if (window.__w3RobustPatch) return;
+  window.__w3RobustPatch = true;
+
+  // ------------------ Utilities ------------------
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n||0).toLocaleString();
+
+  // Safe queue microtask
+  const asap = (fn) => setTimeout(fn, 0);
+
+  // ------------------ World Switch Guard ------------------
+  // Intercept meta.activeWorld changes unless they come from an allowed UI action.
+  (function guardWorldSwitch(){
+    const _meta = window.meta || (window.meta = {activeWorld:'w1'});
+    if (_meta.__guarded) return;
+
+    let allowSwitch = false;
+    function markAllowed(){ allowSwitch = true; asap(()=> allowSwitch = false); }
+
+    // Treat clicks on explicit world UI as allowed; everything else as disallowed (W1/W3).
+    document.addEventListener('click', (ev) => {
+      try{
+        const t = ev.target;
+        const ok =
+          (t && (t.id === 'enterW1' || t.id === 'enterW2' || t.id === 'enterW3')) ||
+          (t && t.closest && t.closest('#enterW1, #enterW2, #enterW3, #worldsBox, .world-card')) ||
+          (t && t.dataset && (t.dataset.world === 'w1' || t.dataset.world === 'w2' || t.dataset.world === 'w3'));
+        if(ok) markAllowed();
+      }catch(_){}
+    }, true);
+
+    // Wrap meta in a Proxy-like defineProperty for activeWorld
+    let _active = _meta.activeWorld || 'w1';
+    try{
+      Object.defineProperty(_meta, 'activeWorld', {
+        get(){ return _active; },
+        set(v){
+          // If not allowed and switching to w3 from a generic click, block
+          if(!allowSwitch && (v === 'w3' || _active !== v)){
+            // Block unintended flip; just return silently
+            return;
+          }
+          _active = v;
+        },
+        configurable: true
+      });
+    }catch(_){ /* environments that disallow defineProperty on meta */ }
+
+    _meta.__guarded = true;
+  })();
+
+  // ------------------ Adaptive State Discovery ------------------
+  function findW3State(){
+    // Priority 1: explicit module
+    if (window.W3Module && typeof window.W3Module.getState === 'function' && typeof window.W3Module.setState === 'function') {
+      return {
+        type: 'module',
+        get(){ return window.W3Module.getState(); },
+        set(s){ window.W3Module.setState(s); }
+      };
+    }
+    // Priority 2: worlds.w3 common layout
+    if (window.worlds && window.worlds.w3){
+      return {
+        type: 'worlds',
+        get(){ return window.worlds.w3; },
+        set(s){ window.worlds.w3 = s; }
+      };
+    }
+    // Priority 3: flat global
+    if (window.w3){
+      return { type: 'flat', get(){ return window.w3; }, set(s){ window.w3 = s; } };
+    }
+    // Fallback: our own shadow state (non-invasive)
+    if(!window.__w3Shadow){
+      window.__w3Shadow = {
+        trophies: 0,
+        currentMob: {name:'Slime', level:1, hp:50, maxHp:50, reward:1},
+        autoAtkLevel: 0,
+        stamina: 10,
+        maxStamina: 10,
+        staminaRegenMs: 4000,
+        prestigeBoostRegen: 0,
+        weaponLevel: 0,
+        precisionLevel: 0,
+        damageMult: 1
+      };
+    }
+    return { type:'shadow', get(){ return window.__w3Shadow; }, set(s){ window.__w3Shadow = s; } };
+  }
+
+  // Locate trophies field holder (could be nested elsewhere)
+  function getTrophiesRef(state){
+    // Prefer local state
+    if (state.trophies != null) return ['local', state];
+    // Search window.* shallowly for trophies numeric field
+    try{
+      for (const k in window){
+        const v = window[k];
+        if (v && typeof v === 'object' && v !== window && v.trophies != null) {
+          return [k, v];
+        }
+      }
+    }catch(_){}
+    // Default to local
+    return ['local', state];
+  }
+
+  // Compute click damage baseline for quartering
+  function estimateClickDamage(s){
+    const base  = 5 + (Number(s.weaponLevel)||0) * 3;
+    const min   = 10 + (Number(s.precisionLevel)||0) * 5;
+    const avgScaled = min + 5;
+    const mult  = Number(s.damageMult)||1;
+    return Math.max(1, Math.floor((base + Math.floor(avgScaled)) * mult));
+  }
+
+  function autoCost(level){ return Math.max(1, Math.floor(10 * Math.pow(1.7, Number(level)||0))); }
+  function autoIntervalMs(level){ const start=5000, step=300, min=330; return Math.max(min, start - step*(Number(level)||0)); }
+
+  // ------------------ UI Mount (idempotent) ------------------
+  function mountUI(){
+    if ($('w3_autoCard')) return; // already mounted
+    const host =
+      $('w3CombatEmbed') ||
+      $('panelLeft') ||
+      $('leftPanel') ||
+      document.body;
+    const card = document.createElement('div');
+    card.id = 'w3_autoCard';
+    card.className = 'card';
+    card.style.marginTop = '8px';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <div><strong>Auto Attack (W3)</strong></div>
+          <div class="muted">Auto-hits current mob without using stamina.</div>
+          <div class="small-muted">Damage: <span id="w3_autoDmg">—</span> (¼ of click)</div>
+          <div class="small-muted">Interval: <span id="w3_autoInt">—</span> (min 0.33s) • Level: <span id="w3_autoLvl">0</span></div>
+        </div>
+        <div>
+          <button id="w3_buyAuto" class="upg"><strong id="w3_autoCost">Buy — 10 🏆</strong></button>
+        </div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">
+        <div class="small-muted">Regen speed: <strong id="w3_regenSpeed">—</strong> / tick</div>
+        <div class="small-muted">Power: <strong id="w3_powerVal">—</strong></div>
+      </div>
+    `;
+    host.appendChild(card);
+
+    // Click: Buy
+    card.addEventListener('click', (e)=>{
+      if(!(e.target && (e.target.id === 'w3_buyAuto' || e.target.id === 'w3_autoCost'))) return;
+      const adapter = findW3State();
+      const s = adapter.get() || {};
+      if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+
+      // Find trophies holder
+      const [_, tref] = getTrophiesRef(s);
+      const cost = autoCost(s.autoAtkLevel);
+      if (Number(tref.trophies||0) < cost) { return; }
+      tref.trophies = Number(tref.trophies||0) - cost;
+      s.autoAtkLevel += 1;
+      if(!s._autoLast) s._autoLast = Date.now();
+      adapter.set(s);
+      render();
+    }, true);
+  }
+
+  // ------------------ Render ------------------
+  function render(){
+    const adapter = findW3State();
+    const s = adapter.get() || {};
+    // Regen speed
+    const regenMs = Math.max(300, Math.floor((Number(s.staminaRegenMs)||4000) * (1 - (Number(s.prestigeBoostRegen)||0))));
+    const regenEl = $('w3_regenSpeed'); if (regenEl) regenEl.textContent = (regenMs/1000).toFixed(2) + 's';
+    // Power (baseline click)
+    const power = estimateClickDamage(s);
+    const powerEl = $('w3_powerVal'); if (powerEl) powerEl.textContent = fmt(power);
+    // Auto stats
+    const lvl = Number(s.autoAtkLevel||0);
+    const intMs = autoIntervalMs(lvl);
+    const dmg = Math.max(1, Math.floor(power/4));
+    const lvlEl = $('w3_autoLvl'); if (lvlEl) lvlEl.textContent = fmt(lvl);
+    const intEl = $('w3_autoInt'); if (intEl) intEl.textContent = (intMs/1000).toFixed(2) + 's';
+    const dmgEl = $('w3_autoDmg'); if (dmgEl) dmgEl.textContent = fmt(dmg);
+    const costEl = $('w3_autoCost'); if (costEl) costEl.textContent = 'Buy — ' + fmt(autoCost(lvl)) + ' 🏆';
+  }
+
+  // ------------------ Auto Attack Engine ------------------
+  function autoLoop(){
+    try{
+      const adapter = findW3State();
+      const s = adapter.get(); if(!s) return;
+      if (Number(s.autoAtkLevel||0) <= 0) return;
+      if ((window.meta && window.meta.activeWorld) !== 'w3') return; // only in W3
+
+      const now = Date.now();
+      const need = autoIntervalMs(Number(s.autoAtkLevel||0));
+      if(!s._autoLast) s._autoLast = now;
+      if(now - s._autoLast < need) return;
+      s._autoLast = now;
+
+      if(!s.currentMob || !s.currentMob.hp || s.currentMob.hp <= 0) return;
+      const dmg = Math.max(1, Math.floor(estimateClickDamage(s)/4));
+      s.currentMob.hp = Math.max(0, Math.floor(s.currentMob.hp - dmg));
+
+      if(s.currentMob.hp <= 0){
+        // Award trophies if field exists
+        if(s.currentMob.reward != null){
+          const mult = Number(s.trophyMult)||1;
+          const [_, tref] = getTrophiesRef(s);
+          tref.trophies = Number(tref.trophies||0) + Math.floor((s.currentMob.reward||0)*mult);
+        }
+        // Respawn at max HP (non-invasive)
+        s.currentMob.hp = s.currentMob.maxHp || 50;
+      }
+      adapter.set(s);
+      render();
+    }catch(_){}
+  }
+
+  // ------------------ Init ------------------
+  function init(){
+    mountUI();
+    render();
+  }
+
+  if (document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
+
+  setInterval(render, 1000);
+  setInterval(autoLoop, 100);
+})();
+</script>
+<!-- === End Robust Patch v4 === -->
+
+<!-- === Ultra-Adaptive Currency/Stats + Render Hook Patch (v5) === -->
+<script>
+(() => {
+  if (window.__w3UltraAdaptivePatch) return;
+  window.__w3UltraAdaptivePatch = true;
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n||0).toLocaleString();
+
+  // ----------- Hook core renders so our panel refreshes immediately -----------
+  function hook(fnName){
+    const orig = window[fnName];
+    if (typeof orig === 'function'){
+      window[fnName] = function(){
+        try { return orig.apply(this, arguments); }
+        finally { try { window.__w3_renderExtras && window.__w3_renderExtras(); } catch(_){} }
+      };
+    }
+  }
+  ['renderAll', 'updateAll', 'w3_renderAll', 'w2_renderAll', 'w1_renderAll'].forEach(hook);
+
+  // ----------- State adapters (like v4) -----------
+  function stateAdapter(){
+    if (window.W3Module && typeof W3Module.getState === 'function' && typeof W3Module.setState === 'function'){
+      return { get: W3Module.getState, set: W3Module.setState, path: 'W3Module' };
+    }
+    if (window.worlds && window.worlds.w3){
+      return { get: () => window.worlds.w3, set: (s)=> (window.worlds.w3 = s), path: 'worlds.w3' };
+    }
+    if (window.w3){
+      return { get: () => window.w3, set: (s)=> (window.w3 = s), path: 'w3' };
+    }
+    if(!window.__w3Shadow){
+      window.__w3Shadow = {
+        trophies: 0,
+        currentMob: {name:'Slime', level:1, hp:50, maxHp:50, reward:1},
+        autoAtkLevel: 0,
+        stamina: 10,
+        maxStamina: 10,
+        staminaRegenMs: 4000,
+        prestigeBoostRegen: 0,
+        weaponLevel: 0,
+        precisionLevel: 0,
+        damageMult: 1,
+        power: 10
+      };
+    }
+    return { get: () => window.__w3Shadow, set: (s)=> (window.__w3Shadow = s), path: '__w3Shadow' };
+  }
+
+  // ----------- Flexible currency locator ("trophies") -----------
+  function findCurrencyRef(root){
+    const candidates = [];
+    function pushIf(obj, key, score){
+      if (!obj) return;
+      const v = obj[key];
+      if (typeof v === 'number') candidates.push({obj, key, score});
+    }
+    // Direct common keys
+    ['trophies','trophy','w3Trophies','trophyPoints','trophy_count'].forEach(k=> pushIf(root, k, 10));
+    // Global sweep (shallow) for keys containing 'troph'
+    try {
+      for (const k in window){
+        const v = window[k];
+        if (!v || typeof v !== 'object' || v === window) continue;
+        for (const kk in v){
+          if (/(troph)/i.test(kk) && typeof v[kk] === 'number'){
+            candidates.push({obj: v, key: kk, score: 8});
+          }
+        }
+      }
+    } catch(_){}
+    // If nothing found, fallback to local
+    if (!candidates.length) return {obj: root, key: 'trophies'};
+    // Prefer ones with larger value (likely active currency)
+    candidates.sort((a,b)=> (b.obj[b.key]||0) - (a.obj[a.key]||0) || b.score - a.score);
+    return candidates[0];
+  }
+
+  // ----------- Flexible POWER (damage per click) detector -----------
+  function detectPower(s){
+    // Try explicit damage fields
+    const keys = ['power','clickPower','damagePerClick','manualDamage','clickDamage','dmg','damage','atk'];
+    for (const k of keys){
+      if (typeof s[k] === 'number' && s[k] > 0) return s[k];
+    }
+    // If not on local state, look globally for an object that has these keys
+    try {
+      for (const k in window){
+        const v = window[k];
+        if (!v || typeof v !== 'object' || v === window) continue;
+        for (const kk of keys){
+          if (typeof v[kk] === 'number' && v[kk] > 0) return v[kk];
+        }
+      }
+    }catch(_){}
+    // Estimate from weapon/precision/mult fields (as before)
+    const base  = 5 + (Number(s.weaponLevel)||0) * 3;
+    const min   = 10 + (Number(s.precisionLevel)||0) * 5;
+    const avgScaled = min + 5;
+    const mult  = Number(s.damageMult)||1;
+    return Math.max(1, Math.floor((base + Math.floor(avgScaled)) * mult));
+  }
+
+  // ----------- Flexible REGEN detection -----------
+  function detectRegenMs(s){
+    // Common names
+    const regKeysMs = ['regenMs','staminaRegenMs','regenIntervalMs','staminaRegenInterval','regenSpeedMs'];
+    for (const k of regKeysMs){
+      if (typeof s[k] === 'number' && s[k] > 0) return Math.max(300, Math.floor(s[k]));
+    }
+    // Rate-based (per second) → convert to ms per tick if present
+    const perSecKeys = ['staminaRegenPerSec','regenPerSec'];
+    for (const k of perSecKeys){
+      if (typeof s[k] === 'number' && s[k] > 0){
+        const perSec = s[k];
+        // If we also have a regenPower, then ms per "tick" can be inferred loosely
+        const pow = detectRegenPower(s);
+        const perUnit = perSec / (pow || 1); // ticks per sec
+        if (perUnit > 0) return Math.max(300, Math.floor(1000 / perUnit));
+      }
+    }
+    // If on globals
+    try{
+      for (const k in window){
+        const v = window[k];
+        if (!v || typeof v !== 'object' || v === window) continue;
+        for (const kk of regKeysMs){
+          if (typeof v[kk] === 'number' && v[kk] > 0) return Math.max(300, Math.floor(v[kk]));
+        }
+      }
+    }catch(_){}
+    // Fallback default
+    return 4000;
+  }
+  function detectRegenPower(s){
+    const keys = ['regenPower','staminaPerTick','staminaRegenPower','staminaRegenAmt','regenAmount','regen_per_tick'];
+    for (const k of keys){
+      if (typeof s[k] === 'number' && s[k] > 0) return s[k];
+    }
+    try{
+      for (const k in window){
+        const v = window[k];
+        if (!v || typeof v !== 'object' || v === window) continue;
+        for (const kk of keys){
+          if (typeof v[kk] === 'number' && v[kk] > 0) return v[kk];
+        }
+      }
+    }catch(_){}
+    return 1;
+  }
+
+  // ----------- Cost / Interval helpers -----------
+  function autoCost(level){ return Math.max(1, Math.floor(10 * Math.pow(1.7, Number(level)||0))); }
+  function autoIntervalMs(level){ const start=5000, step=300, min=330; return Math.max(min, start - step*(Number(level)||0)); }
+
+  // ----------- UI Mount (idempotent) -----------
+  function ensureUI(){
+    if ($('w3_autoCard')) return;
+    const host = $('w3CombatEmbed') || $('panelLeft') || $('leftPanel') || document.body;
+    const card = document.createElement('div');
+    card.id = 'w3_autoCard';
+    card.className = 'card';
+    card.style.marginTop = '8px';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <div><strong>Auto Attack (W3)</strong></div>
+          <div class="muted">Auto-hits current mob without using stamina.</div>
+          <div class="small-muted">Damage: <span id="w3_autoDmg">—</span> (¼ of click)</div>
+          <div class="small-muted">Interval: <span id="w3_autoInt">—</span> (min 0.33s) • Level: <span id="w3_autoLvl">0</span></div>
+        </div>
+        <div>
+          <button id="w3_buyAuto" class="upg"><strong id="w3_autoCost">Buy — 10 🏆</strong></button>
+        </div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">
+        <div class="small-muted">Regen speed: <strong id="w3_regenSpeed">—</strong> / tick</div>
+        <div class="small-muted">Power: <strong id="w3_powerVal">—</strong></div>
+      </div>
+    `;
+    host.appendChild(card);
+
+    card.addEventListener('click', (e)=>{
+      if(!(e.target && (e.target.id === 'w3_buyAuto' || e.target.id === 'w3_autoCost'))) return;
+      const adapter = stateAdapter();
+      const s = adapter.get() || {};
+      if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+
+      const curRef = findCurrencyRef(s);
+      const cost = autoCost(s.autoAtkLevel);
+      const curVal = Number(curRef.obj[curRef.key] || 0);
+      if (curVal < cost) { return; }
+      curRef.obj[curRef.key] = curVal - cost;
+      s.autoAtkLevel += 1;
+      if(!s._autoLast) s._autoLast = Date.now();
+      adapter.set(s);
+      render();
+    }, true);
+  }
+
+  // ----------- Render -----------
+  function render(){
+    const adapter = stateAdapter();
+    const s = adapter.get() || {};
+    const regenMs = detectRegenMs(s);
+    const regenPow = detectRegenPower(s);
+    const power = detectPower(s);
+
+    const regenEl = $('w3_regenSpeed'); if (regenEl) regenEl.textContent = (regenMs/1000).toFixed(2) + 's';
+    const powEl = $('w3_powerVal'); if (powEl) powEl.textContent = fmt(power);
+
+    const lvl = Number(s.autoAtkLevel||0);
+    const intMs = autoIntervalMs(lvl);
+    const dmg = Math.max(1, Math.floor(power/4));
+    const lvlEl = $('w3_autoLvl'); if (lvlEl) lvlEl.textContent = fmt(lvl);
+    const intEl = $('w3_autoInt'); if (intEl) intEl.textContent = (intMs/1000).toFixed(2) + 's';
+    const dmgEl = $('w3_autoDmg'); if (dmgEl) dmgEl.textContent = fmt(dmg);
+    const costEl = $('w3_autoCost'); if (costEl) costEl.textContent = 'Buy — ' + fmt(autoCost(lvl)) + ' 🏆';
+  }
+  window.__w3_renderExtras = render;
+
+  // ----------- Auto Attack Engine -----------
+  function autoLoop(){
+    try{
+      const adapter = stateAdapter();
+      const s = adapter.get(); if(!s) return;
+      if (Number(s.autoAtkLevel||0) <= 0) return;
+      if ((window.meta && window.meta.activeWorld) !== 'w3') return; // only in W3
+
+      const now = Date.now();
+      const need = autoIntervalMs(Number(s.autoAtkLevel||0));
+      if(!s._autoLast) s._autoLast = now;
+      if(now - s._autoLast < need) return;
+      s._autoLast = now;
+
+      if(!s.currentMob || !s.currentMob.hp || s.currentMob.hp <= 0) return;
+      const dmg = Math.max(1, Math.floor(detectPower(s)/4));
+      s.currentMob.hp = Math.max(0, Math.floor(s.currentMob.hp - dmg));
+
+      if(s.currentMob.hp <= 0){
+        // Award trophies using flexible currency ref if reward exists
+        if(s.currentMob.reward != null){
+          const curRef = findCurrencyRef(s);
+          const mult = Number(s.trophyMult)||1;
+          curRef.obj[curRef.key] = Number(curRef.obj[curRef.key]||0) + Math.floor((s.currentMob.reward||0)*mult);
+        }
+        // Respawn at max
+        s.currentMob.hp = s.currentMob.maxHp || 50;
+      }
+      adapter.set(s);
+      render();
+    }catch(_){}
+  }
+
+  function init(){
+    ensureUI();
+    render();
+  }
+  if (document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
+
+  setInterval(render, 500);
+  setInterval(autoLoop, 100);
+})();
+</script>
+<!-- === End Ultra-Adaptive Patch v5 === -->
 </body>
 </html>
 
@@ -2928,4 +4839,328 @@ body:not(.theme-w3) .badge { background:#dcfce7 !important; color:#166534 !impor
 body:not(.theme-w3) .coin { background:#fef9c3 !important; color:#854d0e !important; border-color:#fde68a !important; }
 </style>
 
+<script type="module">
+// === Add "Back to World 1/2" buttons inside W3 UI and wire them ===
+(function(){
+  const $ = (id)=>document.getElementById(id);
 
+  function ensureBackButtons(){
+    const root = document.getElementById('w3Full');
+    if(!root) return;
+    if(document.getElementById('w3_backRow')) return;
+
+    const backRow = document.createElement('div');
+    backRow.id = 'w3_backRow';
+    backRow.className = 'row';
+    backRow.style.marginTop = '6px';
+    backRow.innerHTML = `
+      <button id="w3_back_w1" class="upg" style="padding:6px 10px"><strong>⬅ Back to World 1</strong></button>
+      <button id="w3_back_w2" class="upg" style="padding:6px 10px"><strong>⬅ Back to World 2</strong></button>
+    `;
+
+    // Insert right under the title (after the first <h3> and subtitle)
+    const after = root.querySelector('h3')?.nextElementSibling;
+    if(after && after.parentNode){
+      after.parentNode.insertBefore(backRow, after.nextSibling);
+    } else {
+      root.prepend(backRow);
+    }
+
+    const leaveTo = (id)=>{
+      try{
+        document.body.classList.remove('theme-w3');
+        if(window.meta){
+          meta.activeWorld = id;
+          if(window.renderAll) renderAll();
+          if(window.updateAll) updateAll();
+          if(window.saveLocal) saveLocal();
+        }
+        window.scrollTo({top:0, behavior:'smooth'});
+      }catch(e){}
+    };
+
+    document.getElementById('w3_back_w1').onclick = ()=> leaveTo('w1');
+    document.getElementById('w3_back_w2').onclick = ()=> leaveTo('w2');
+  }
+
+  // Try now and whenever W3 is entered
+  ensureBackButtons();
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && (t.id==='enterW3' || /enter world 3/i.test(t.textContent||''))){
+      setTimeout(ensureBackButtons, 50);
+    }
+  });
+})();
+</script>
+<!-- === Clean W3 Auto Attack (native) Patch v8 === -->
+<script>
+(() => {
+  if (window.__w3NativeAutoPatch) return;
+  window.__w3NativeAutoPatch = true;
+
+  // Helpers
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n)=> Number(n||0).toLocaleString();
+
+  // If prior duplicate cards exist, remove them
+  function removeDupes(){
+    const ids = ['w3_autoCard'];
+    ids.forEach(id => {
+      const els = document.querySelectorAll('#'+id);
+      if(els.length > 1){
+        for(let i=0;i<els.length-1;i++){ els[i].remove(); }
+      }
+    });
+  }
+
+  // Use the native w3state
+  function getState(){ return window.w3state; }
+  function setState(s){ window.w3state = s; }
+
+  function estPower(s){
+    // Mirror endAttackPhase math around lines ~2723-2725 in your file
+    const base = 5 + (s.weaponLevel*3);
+    const min = 10 + (s.precisionLevel*5);
+    const max = min + 10;
+    const avgScaled = min + 5; // average between min and max
+    const dmg = (base + Math.floor(avgScaled)) * (s.damageMult||1);
+    return Math.max(1, Math.floor(dmg));
+  }
+  function regenMsFrom(s){
+    return Math.max(300, Math.floor(s.staminaRegenMs*(1-(s.prestigeBoostRegen||0))));
+  }
+
+  function autoCost(level){ return Math.max(1, Math.floor(10 * Math.pow(1.7, Number(level)||0))); }
+  function autoIntervalMs(level){ const start=5000, step=300, min=330; return Math.max(min, start - step*(Number(level)||0)); }
+
+  function mountUI(){
+    if ($('w3_autoCard')) return;
+    // insert after mob card if available, else at the end of World 3 column
+    const mobBox = $('w3_mobBox');
+    const container = mobBox ? mobBox.parentElement : document.getElementById('panelLeft') || document.body;
+
+    const card = document.createElement('div');
+    card.id = 'w3_autoCard';
+    card.className = 'card';
+    card.style.marginTop = '8px';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <div><strong>Auto Attack (World 3)</strong></div>
+          <div class="muted">Auto-hits current mob without using stamina.</div>
+          <div class="small-muted">Damage: <span id="w3_autoDmg">—</span> (¼ of click)</div>
+          <div class="small-muted">Interval: <span id="w3_autoInt">—</span> (min 0.33s) • Level: <span id="w3_autoLvl">0</span></div>
+        </div>
+        <div>
+          <button id="w3_buyAuto" class="upg"><strong id="w3_autoCost">Buy — 10 🏆</strong></button>
+        </div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">
+        <div class="small-muted">Regen speed: <strong id="w3_regenSpeed">—</strong> / tick</div>
+        <div class="small-muted">Regen power: <strong id="w3_regenPower">+1</strong></div>
+        <div class="small-muted">Power: <strong id="w3_powerVal">—</strong></div>
+      </div>
+    `;
+    if(mobBox && mobBox.nextSibling) mobBox.parentElement.insertBefore(card, mobBox.nextSibling);
+    else container.appendChild(card);
+
+    // Buy click
+    card.addEventListener('click', (e)=>{
+      if(!(e.target && (e.target.id==='w3_buyAuto' || e.target.id==='w3_autoCost'))) return;
+      const s = getState(); if(!s) return;
+      if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+      const cost = autoCost(s.autoAtkLevel);
+      if ((s.trophies||0) < cost) return;
+      s.trophies -= cost;
+      s.autoAtkLevel += 1;
+      if(!s._autoLast) s._autoLast = Date.now();
+      setState(s);
+      render();
+      // Also refresh native W3 UI numbers
+      if (typeof window.w3_renderAll === 'function') window.w3_renderAll();
+    }, true);
+  }
+
+  function render(){
+    const s = getState(); if(!s) return;
+    if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+    const power = estPower(s);
+    const intMs = autoIntervalMs(s.autoAtkLevel);
+    const dmg = Math.max(1, Math.floor(power/4));
+    const regenMs = regenMsFrom(s);
+
+    const lvlEl=$('w3_autoLvl'); if(lvlEl) lvlEl.textContent = s.autoAtkLevel;
+    const intEl=$('w3_autoInt'); if(intEl) intEl.textContent = (intMs/1000).toFixed(2)+'s';
+    const dmgEl=$('w3_autoDmg'); if(dmgEl) dmgEl.textContent = fmt(dmg);
+    const costEl=$('w3_autoCost'); if(costEl) costEl.textContent = 'Buy — ' + fmt(autoCost(s.autoAtkLevel)) + ' 🏆';
+    const rsEl=$('w3_regenSpeed'); if(rsEl) rsEl.textContent = (regenMs/1000).toFixed(2)+'s';
+    const rpEl=$('w3_regenPower'); if(rpEl) rpEl.textContent = '+1';
+    const powEl=$('w3_powerVal'); if(powEl) powEl.textContent = fmt(power);
+  }
+
+  // Auto engine (uses native w3state, only in W3)
+  function autoLoop(){
+    try{
+      const s = getState(); if(!s) return;
+      if ((window.meta && meta.activeWorld) !== 'w3') return;
+      const lvl = Number(s.autoAtkLevel||0); if(lvl<=0) return;
+
+      const need = autoIntervalMs(lvl);
+      const now = Date.now();
+      if(!s._autoLast) s._autoLast = now;
+      if(now - s._autoLast < need) return;
+      s._autoLast = now;
+
+      if(!s.currentMob || !s.currentMob.hp || s.currentMob.hp<=0) return;
+      const dmg = Math.max(1, Math.floor(estPower(s)/4));
+      s.currentMob.hp = Math.max(0, s.currentMob.hp - dmg);
+      if(s.currentMob.hp<=0){
+        const reward = Math.floor((s.currentMob.reward||0) * (s.trophyMult||1));
+        s.trophies = (s.trophies||0) + reward;
+        // Respawn same mob at max HP to avoid altering your floor progression
+        s.currentMob.hp = s.currentMob.maxHp || 10;
+      }
+      setState(s);
+      // Refresh both our panel and native UI
+      render();
+      if (typeof window.w3_renderAll === 'function') window.w3_renderAll();
+    }catch(_){}
+  }
+
+  // Wire into the native render so upgrades instantly reflect
+  const _w3r = window.w3_renderAll;
+  if (typeof _w3r === 'function'){
+    window.w3_renderAll = function(){
+      try{ _w3r.apply(this, arguments); } finally { try{ render(); }catch(_){ } }
+    };
+  }
+
+  // Init
+  function init(){
+    removeDupes();
+    mountUI();
+    render();
+  }
+  if (document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
+
+  // Timers
+  setInterval(render, 500);
+  setInterval(autoLoop, 100);
+})();
+</script>
+<!-- === End Clean W3 Auto Attack Patch v8 === -->
+
+<!-- === World State Unifier + Auto-Attack Buy Fix (v9) === -->
+<script>
+(() => {
+  if (window.__worldUnifierV9) return; window.__worldUnifierV9 = true;
+
+  // Ensure meta exists and make activeWorld a plain writable property (remove guards)
+  window.meta = window.meta || { activeWorld: 'w1', worldsUnlocked: { w1:true, w2:false, w3:false } };
+  (function normalizeActiveWorld(){
+    try{
+      const current = ('activeWorld' in meta) ? meta.activeWorld : 'w1';
+      // Remove any property descriptors that block setting
+      try { delete meta.activeWorld; } catch(_){}
+      try { Object.defineProperty(meta, 'activeWorld', { value: current, writable: true, configurable: true, enumerable: true }); } catch(_){
+        meta.activeWorld = current;
+      }
+    }catch(_){}
+  })();
+
+  function syncPanels(){
+    const aw = meta.activeWorld;
+    const res = document.getElementById('resourceGrid');           // W1
+    const fish = document.getElementById('fishingEmbed');          // W2
+    const w3 = document.getElementById('w3CombatEmbed') || document.getElementById('w3_mobBox')?.parentElement;
+    if (res)   res.classList.toggle('hidden', aw !== 'w1');
+    if (fish)  fish.classList.toggle('hidden', aw !== 'w2');
+    if (w3)  { w3.classList.toggle('hidden', aw !== 'w3'); w3.style.display = (aw==='w3'?'block':'none'); w3.style.pointerEvents = (aw==='w3'?'auto':'none'); }
+    // Update headers/subtitles if present
+    const titleEl = document.getElementById('leftTitleText');
+    const worldNameEl = document.getElementById('worldName');
+    const leftSub = document.getElementById('leftSub');
+    if (titleEl)    titleEl.textContent = aw==='w3' ? 'Combat' : (aw==='w2' ? 'Fishing' : 'Click Panel');
+    if (worldNameEl) worldNameEl.textContent = aw==='w3' ? 'World 3' : (aw==='w2' ? 'World 2' : 'World 1');
+    if (leftSub && aw==='w3') leftSub.textContent = 'Fight mobs to earn Trophies. Auto Attack does not consume stamina.';
+  }
+
+  window.setActiveWorld = function(w){
+    if (!w || !/^(w1|w2|w3)$/.test(w)) return;
+    meta.activeWorld = w;
+    // Ensure only one is "current" in the worlds list
+    const tags = document.querySelectorAll('.world-card .tag');
+    tags.forEach(el => el.remove());
+    // Ask native renders to refresh
+    try { if (typeof window.renderWorlds === 'function') window.renderWorlds(); } catch(_){}
+    try { if (typeof window.renderAll === 'function') window.renderAll(); } catch(_){}
+    try { if (typeof window.updateAll === 'function') window.updateAll(); } catch(_){}
+    try { if (typeof window.w3_renderAll === 'function') window.w3_renderAll(); } catch(_){}
+    try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch(_){}
+    syncPanels();
+  };
+
+  // Rebind world enter buttons after worlds render
+  const _renderWorlds = window.renderWorlds;
+  if (typeof _renderWorlds === 'function'){
+    window.renderWorlds = function(){
+      const out = _renderWorlds.apply(this, arguments);
+      // Bind buttons safely
+      const b1 = document.getElementById('enterW1'); if (b1) b1.onclick = () => setActiveWorld('w1');
+      const b2 = document.getElementById('enterW2'); if (b2) b2.onclick = () => setActiveWorld('w2');
+      const b3 = document.getElementById('enterW3'); if (b3) b3.onclick = () => setActiveWorld('w3');
+      syncPanels();
+      return out;
+    };
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      ['enterW1','enterW2','enterW3'].forEach(id => {
+        const b = document.getElementById(id); if (b) b.onclick = () => setActiveWorld(id.slice(-2));
+      });
+      syncPanels();
+    });
+  }
+
+  // --- Auto Attack Buy inline handler to bypass capture stoppers ---
+  window.buyW3Auto = function(){
+    try{
+      const s = window.w3state; if(!s) return;
+      if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+      const cost = Math.max(1, Math.floor(10 * Math.pow(1.7, s.autoAtkLevel)));
+      if ((s.trophies||0) < cost) return;
+      s.trophies -= cost;
+      s.autoAtkLevel += 1;
+      s._autoLast = Date.now();
+      if (typeof window.w3_renderAll === 'function') window.w3_renderAll();
+      if (typeof window.__w3_renderExtras === 'function') window.__w3_renderExtras();
+    }catch(_){}
+  };
+
+  // Replace the Buy button content (if present) to use inline onclick
+  function wireBuyButton(){
+    const btn = document.getElementById('w3_buyAuto');
+    if (!btn) return;
+    btn.setAttribute('onclick', 'buyW3Auto()');
+  }
+
+  // Keep our Regen/Power panel synced after native renders
+  const _w3r = window.w3_renderAll;
+  if (typeof _w3r === 'function'){
+    window.w3_renderAll = function(){
+      const r = _w3r.apply(this, arguments);
+      try { wireBuyButton(); } catch(_){}
+      try { if (typeof window.__w3_renderExtras === 'function') window.__w3_renderExtras(); } catch(_){}
+      return r;
+    };
+  } else {
+    document.addEventListener('DOMContentLoaded', wireBuyButton);
+  }
+
+  // Initial sync
+  if (document.readyState !== 'loading') { syncPanels(); wireBuyButton(); }
+  else document.addEventListener('DOMContentLoaded', () => { syncPanels(); wireBuyButton(); });
+})();
+</script>
+<!-- === End v9 Patch === -->
