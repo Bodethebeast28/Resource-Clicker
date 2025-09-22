@@ -2208,31 +2208,34 @@ function renderWorlds(){
   // World 1
   const w1=document.createElement('div');
   w1.className='world-card';
-  w1.innerHTML = `<strong>World 1</strong> ${meta.activeWorld==='w1'?'<span class="tag">Current</span>':''
+  w1.innerHTML = `<strong>World 1</strong> ${meta.activeWorld==='w1'?'<span class="tag">Current</span>':''}<br>
+  <span class="small-muted">Standard progression (ignored after World 2 unlock). Brown theme.</span><br>
+  ${meta.activeWorld==='w1'?'':`<button class="small" id="enterW1">Enter World 1</button>`}`;
+  box.appendChild(w1);
+  if(meta.activeWorld!=='w1'){ w1.querySelector('#enterW1').addEventListener('click', ()=>{ meta.activeWorld='w1'; renderAll(); updateAll(); saveLocal(); }); }
 
-  // World 3
-  const w3=document.createElement('div');
-  w3.className='world-card';
-  const unlocked3 = !!meta.worldsUnlocked.w3;
-  w3.innerHTML = `<strong>World 3</strong> ${meta.activeWorld==='w3'?'<span class="tag">Current</span>':''}<br>
-  <span class="small-muted">${unlocked3?'Combat-focused world with trophies and its own prestige.':'Unlock for 2500 Prestige Points.'}</span><br>
-  ${unlocked3 ? (meta.activeWorld==='w3'?'':`<button class="small" id="enterW3">Enter World 3</button>`) : `<button class="small" id="buyW3">Unlock — 2500 PP</button>`}`;
-  box.appendChild(w3);
-  if(!unlocked3){
-    const btn=w3.querySelector('#buyW3');
-    btn.disabled = meta.prestigePoints < 2500;
+  // World 2
+  const w2=document.createElement('div');
+  w2.className='world-card';
+  const unlocked = !!meta.worldsUnlocked.w2;
+  w2.innerHTML = `<strong>World 2</strong> ${meta.activeWorld==='w2'?'<span class="tag">Current</span>':''}<br>
+  <span class="small-muted">${unlocked?'Counts for score & leaderboard (10× values). Uses universal Coins. Light blue theme.':'Unlock for 1000 Prestige Points (becomes the only scoring world).'}</span><br>
+  ${unlocked ? (meta.activeWorld==='w2'?'':`<button class="small" id="enterW2">Enter World 2</button>`) : `<button class="small" id="buyW2">Unlock — 1000 PP</button>`}`;
+  box.appendChild(w2);
+  if(!unlocked){
+    const btn=w2.querySelector('#buyW2');
+    btn.disabled = meta.prestigePoints < 1000;
     btn.addEventListener('click', ()=>{
-      if(meta.prestigePoints < 2500) return;
-      meta.prestigePoints -= 2500;
-      meta.worldsUnlocked.w3 = true;
-      if(!worlds.w3) worlds.w3 = (window.W3Module ? window.W3Module.getState() : {});
+      if(meta.prestigePoints < 1000) return;
+      meta.prestigePoints -= 1000;
+      meta.worldsUnlocked.w2 = true;
+      if(!worlds.w2) worlds.w2 = newWorldState();
       renderWorlds(); updateAll(); saveLocal();
     });
-  } else if(meta.activeWorld!=='w3'){
-    w3.querySelector('#enterW3').addEventListener('click', ()=>{ meta.activeWorld='w3'; renderAll(); updateAll(); saveLocal(); });
+  } else if(meta.activeWorld!=='w2'){
+    w2.querySelector('#enterW2').addEventListener('click', ()=>{ meta.activeWorld='w2'; renderAll(); updateAll(); saveLocal(); });
   }
-
-}<br>
+}
   <span class="small-muted">Standard progression (ignored after World 2 unlock). Brown theme.</span><br>
   ${meta.activeWorld==='w1'?'':`<button class="small" id="enterW1">Enter World 1</button>`}`;
   box.appendChild(w1);
@@ -3150,7 +3153,7 @@ body.theme-w3{ --bg:#eef2ff; --header:#3730a3; }
   }
 
   
-const DEFAULT = {
+const DEFAULT_DUP_IGNORED = {
   hp:100, maxHp:100,
   stamina:10, maxStamina:10,
   staminaRegenMs:4000,
