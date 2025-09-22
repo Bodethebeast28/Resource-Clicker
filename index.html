@@ -4530,6 +4530,274 @@ body.theme-w3 header .muted { display:none !important; }
 })();
 </script>
 <!-- === End Robust Patch v4 === -->
+
+<!-- === Ultra-Adaptive Currency/Stats + Render Hook Patch (v5) === -->
+<script>
+(() => {
+  if (window.__w3UltraAdaptivePatch) return;
+  window.__w3UltraAdaptivePatch = true;
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n||0).toLocaleString();
+
+  // ----------- Hook core renders so our panel refreshes immediately -----------
+  function hook(fnName){
+    const orig = window[fnName];
+    if (typeof orig === 'function'){
+      window[fnName] = function(){
+        try { return orig.apply(this, arguments); }
+        finally { try { window.__w3_renderExtras && window.__w3_renderExtras(); } catch(_){} }
+      };
+    }
+  }
+  ['renderAll', 'updateAll', 'w3_renderAll', 'w2_renderAll', 'w1_renderAll'].forEach(hook);
+
+  // ----------- State adapters (like v4) -----------
+  function stateAdapter(){
+    if (window.W3Module && typeof W3Module.getState === 'function' && typeof W3Module.setState === 'function'){
+      return { get: W3Module.getState, set: W3Module.setState, path: 'W3Module' };
+    }
+    if (window.worlds && window.worlds.w3){
+      return { get: () => window.worlds.w3, set: (s)=> (window.worlds.w3 = s), path: 'worlds.w3' };
+    }
+    if (window.w3){
+      return { get: () => window.w3, set: (s)=> (window.w3 = s), path: 'w3' };
+    }
+    if(!window.__w3Shadow){
+      window.__w3Shadow = {
+        trophies: 0,
+        currentMob: {name:'Slime', level:1, hp:50, maxHp:50, reward:1},
+        autoAtkLevel: 0,
+        stamina: 10,
+        maxStamina: 10,
+        staminaRegenMs: 4000,
+        prestigeBoostRegen: 0,
+        weaponLevel: 0,
+        precisionLevel: 0,
+        damageMult: 1,
+        power: 10
+      };
+    }
+    return { get: () => window.__w3Shadow, set: (s)=> (window.__w3Shadow = s), path: '__w3Shadow' };
+  }
+
+  // ----------- Flexible currency locator ("trophies") -----------
+  function findCurrencyRef(root){
+    const candidates = [];
+    function pushIf(obj, key, score){
+      if (!obj) return;
+      const v = obj[key];
+      if (typeof v === 'number') candidates.push({obj, key, score});
+    }
+    // Direct common keys
+    ['trophies','trophy','w3Trophies','trophyPoints','trophy_count'].forEach(k=> pushIf(root, k, 10));
+    // Global sweep (shallow) for keys containing 'troph'
+    try {
+      for (const k in window){
+        const v = window[k];
+        if (!v || typeof v !== 'object' || v === window) continue;
+        for (const kk in v){
+          if (/(troph)/i.test(kk) && typeof v[kk] === 'number'){
+            candidates.push({obj: v, key: kk, score: 8});
+          }
+        }
+      }
+    } catch(_){}
+    // If nothing found, fallback to local
+    if (!candidates.length) return {obj: root, key: 'trophies'};
+    // Prefer ones with larger value (likely active currency)
+    candidates.sort((a,b)=> (b.obj[b.key]||0) - (a.obj[a.key]||0) || b.score - a.score);
+    return candidates[0];
+  }
+
+  // ----------- Flexible POWER (damage per click) detector -----------
+  function detectPower(s){
+    // Try explicit damage fields
+    const keys = ['power','clickPower','damagePerClick','manualDamage','clickDamage','dmg','damage','atk'];
+    for (const k of keys){
+      if (typeof s[k] === 'number' && s[k] > 0) return s[k];
+    }
+    // If not on local state, look globally for an object that has these keys
+    try {
+      for (const k in window){
+        const v = window[k];
+        if (!v || typeof v !== 'object' || v === window) continue;
+        for (const kk of keys){
+          if (typeof v[kk] === 'number' && v[kk] > 0) return v[kk];
+        }
+      }
+    }catch(_){}
+    // Estimate from weapon/precision/mult fields (as before)
+    const base  = 5 + (Number(s.weaponLevel)||0) * 3;
+    const min   = 10 + (Number(s.precisionLevel)||0) * 5;
+    const avgScaled = min + 5;
+    const mult  = Number(s.damageMult)||1;
+    return Math.max(1, Math.floor((base + Math.floor(avgScaled)) * mult));
+  }
+
+  // ----------- Flexible REGEN detection -----------
+  function detectRegenMs(s){
+    // Common names
+    const regKeysMs = ['regenMs','staminaRegenMs','regenIntervalMs','staminaRegenInterval','regenSpeedMs'];
+    for (const k of regKeysMs){
+      if (typeof s[k] === 'number' && s[k] > 0) return Math.max(300, Math.floor(s[k]));
+    }
+    // Rate-based (per second) → convert to ms per tick if present
+    const perSecKeys = ['staminaRegenPerSec','regenPerSec'];
+    for (const k of perSecKeys){
+      if (typeof s[k] === 'number' && s[k] > 0){
+        const perSec = s[k];
+        // If we also have a regenPower, then ms per "tick" can be inferred loosely
+        const pow = detectRegenPower(s);
+        const perUnit = perSec / (pow || 1); // ticks per sec
+        if (perUnit > 0) return Math.max(300, Math.floor(1000 / perUnit));
+      }
+    }
+    // If on globals
+    try{
+      for (const k in window){
+        const v = window[k];
+        if (!v || typeof v !== 'object' || v === window) continue;
+        for (const kk of regKeysMs){
+          if (typeof v[kk] === 'number' && v[kk] > 0) return Math.max(300, Math.floor(v[kk]));
+        }
+      }
+    }catch(_){}
+    // Fallback default
+    return 4000;
+  }
+  function detectRegenPower(s){
+    const keys = ['regenPower','staminaPerTick','staminaRegenPower','staminaRegenAmt','regenAmount','regen_per_tick'];
+    for (const k of keys){
+      if (typeof s[k] === 'number' && s[k] > 0) return s[k];
+    }
+    try{
+      for (const k in window){
+        const v = window[k];
+        if (!v || typeof v !== 'object' || v === window) continue;
+        for (const kk of keys){
+          if (typeof v[kk] === 'number' && v[kk] > 0) return v[kk];
+        }
+      }
+    }catch(_){}
+    return 1;
+  }
+
+  // ----------- Cost / Interval helpers -----------
+  function autoCost(level){ return Math.max(1, Math.floor(10 * Math.pow(1.7, Number(level)||0))); }
+  function autoIntervalMs(level){ const start=5000, step=300, min=330; return Math.max(min, start - step*(Number(level)||0)); }
+
+  // ----------- UI Mount (idempotent) -----------
+  function ensureUI(){
+    if ($('w3_autoCard')) return;
+    const host = $('w3CombatEmbed') || $('panelLeft') || $('leftPanel') || document.body;
+    const card = document.createElement('div');
+    card.id = 'w3_autoCard';
+    card.className = 'card';
+    card.style.marginTop = '8px';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <div><strong>Auto Attack (W3)</strong></div>
+          <div class="muted">Auto-hits current mob without using stamina.</div>
+          <div class="small-muted">Damage: <span id="w3_autoDmg">—</span> (¼ of click)</div>
+          <div class="small-muted">Interval: <span id="w3_autoInt">—</span> (min 0.33s) • Level: <span id="w3_autoLvl">0</span></div>
+        </div>
+        <div>
+          <button id="w3_buyAuto" class="upg"><strong id="w3_autoCost">Buy — 10 🏆</strong></button>
+        </div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">
+        <div class="small-muted">Regen speed: <strong id="w3_regenSpeed">—</strong> / tick</div>
+        <div class="small-muted">Power: <strong id="w3_powerVal">—</strong></div>
+      </div>
+    `;
+    host.appendChild(card);
+
+    card.addEventListener('click', (e)=>{
+      if(!(e.target && (e.target.id === 'w3_buyAuto' || e.target.id === 'w3_autoCost'))) return;
+      const adapter = stateAdapter();
+      const s = adapter.get() || {};
+      if (typeof s.autoAtkLevel !== 'number') s.autoAtkLevel = 0;
+
+      const curRef = findCurrencyRef(s);
+      const cost = autoCost(s.autoAtkLevel);
+      const curVal = Number(curRef.obj[curRef.key] || 0);
+      if (curVal < cost) { return; }
+      curRef.obj[curRef.key] = curVal - cost;
+      s.autoAtkLevel += 1;
+      if(!s._autoLast) s._autoLast = Date.now();
+      adapter.set(s);
+      render();
+    }, true);
+  }
+
+  // ----------- Render -----------
+  function render(){
+    const adapter = stateAdapter();
+    const s = adapter.get() || {};
+    const regenMs = detectRegenMs(s);
+    const regenPow = detectRegenPower(s);
+    const power = detectPower(s);
+
+    const regenEl = $('w3_regenSpeed'); if (regenEl) regenEl.textContent = (regenMs/1000).toFixed(2) + 's';
+    const powEl = $('w3_powerVal'); if (powEl) powEl.textContent = fmt(power);
+
+    const lvl = Number(s.autoAtkLevel||0);
+    const intMs = autoIntervalMs(lvl);
+    const dmg = Math.max(1, Math.floor(power/4));
+    const lvlEl = $('w3_autoLvl'); if (lvlEl) lvlEl.textContent = fmt(lvl);
+    const intEl = $('w3_autoInt'); if (intEl) intEl.textContent = (intMs/1000).toFixed(2) + 's';
+    const dmgEl = $('w3_autoDmg'); if (dmgEl) dmgEl.textContent = fmt(dmg);
+    const costEl = $('w3_autoCost'); if (costEl) costEl.textContent = 'Buy — ' + fmt(autoCost(lvl)) + ' 🏆';
+  }
+  window.__w3_renderExtras = render;
+
+  // ----------- Auto Attack Engine -----------
+  function autoLoop(){
+    try{
+      const adapter = stateAdapter();
+      const s = adapter.get(); if(!s) return;
+      if (Number(s.autoAtkLevel||0) <= 0) return;
+      if ((window.meta && window.meta.activeWorld) !== 'w3') return; // only in W3
+
+      const now = Date.now();
+      const need = autoIntervalMs(Number(s.autoAtkLevel||0));
+      if(!s._autoLast) s._autoLast = now;
+      if(now - s._autoLast < need) return;
+      s._autoLast = now;
+
+      if(!s.currentMob || !s.currentMob.hp || s.currentMob.hp <= 0) return;
+      const dmg = Math.max(1, Math.floor(detectPower(s)/4));
+      s.currentMob.hp = Math.max(0, Math.floor(s.currentMob.hp - dmg));
+
+      if(s.currentMob.hp <= 0){
+        // Award trophies using flexible currency ref if reward exists
+        if(s.currentMob.reward != null){
+          const curRef = findCurrencyRef(s);
+          const mult = Number(s.trophyMult)||1;
+          curRef.obj[curRef.key] = Number(curRef.obj[curRef.key]||0) + Math.floor((s.currentMob.reward||0)*mult);
+        }
+        // Respawn at max
+        s.currentMob.hp = s.currentMob.maxHp || 50;
+      }
+      adapter.set(s);
+      render();
+    }catch(_){}
+  }
+
+  function init(){
+    ensureUI();
+    render();
+  }
+  if (document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
+
+  setInterval(render, 500);
+  setInterval(autoLoop, 100);
+})();
+</script>
+<!-- === End Ultra-Adaptive Patch v5 === -->
 </body>
 </html>
 
