@@ -1103,6 +1103,49 @@ function renderWorlds(){
   } else if(meta.activeWorld!=='w2'){
     w2.querySelector('#enterW2').addEventListener('click', ()=>{ meta.activeWorld='w2'; renderAll(); updateAll(); saveLocal(); });
   }
+
+// World 3 (paywall: 5000 W2PP)
+try{
+  const w3=document.createElement('div');
+  w3.className='world-card';
+  const unlockedW3 = !!(meta.worldsUnlocked && meta.worldsUnlocked.w3);
+  w3.innerHTML = `<strong>World 3</strong> ${meta.activeWorld==='w3'?'<span class="tag">Current</span>':''}<br>
+  <span class="small-muted">${unlockedW3?'High-tier world (unlocked with W2 Prestige Points).':'Unlock for 5000 World 2 Prestige Points.'}</span><br>
+  ${unlockedW3 ? (meta.activeWorld==='w3'?'' : `<button class="small" id="enterW3">Enter World 3</button>`) : `<button class="small" id="buyW3">Unlock — 5000 W2PP</button>`}`;
+  box.appendChild(w3);
+
+  if(!unlockedW3){
+    const buyBtn=w3.querySelector('#buyW3');
+    if(buyBtn){
+      buyBtn.disabled = ((meta.w2PrestigePoints||0) < 5000);
+      buyBtn.addEventListener('click', ()=>{
+        if((meta.w2PrestigePoints||0) < 5000) return;
+        meta.w2PrestigePoints -= 5000;
+        if(!meta.worldsUnlocked) meta.worldsUnlocked = {w1:true,w2:!!(meta.worldsUnlocked&&meta.worldsUnlocked.w2),w3:false};
+        meta.worldsUnlocked.w3 = true;
+        if(!window.worlds) window.worlds = {};
+        if(!worlds.w3 && typeof newWorldState==='function') worlds.w3 = newWorldState();
+        try{ renderWorlds(); }catch(_){}
+        try{ updateAll(); }catch(_){}
+        try{ saveLocal(); }catch(_){}
+      });
+    }
+  } else if(meta.activeWorld!=='w3'){
+    const enterBtn=w3.querySelector('#enterW3');
+    if(enterBtn){
+      enterBtn.addEventListener('click', ()=>{
+        if (typeof setActiveWorld === 'function') {
+          setActiveWorld('w3');
+        } else {
+          meta.activeWorld='w3';
+          try{ renderAll(); }catch(_){}
+          try{ updateAll(); }catch(_){}
+          try{ saveLocal(); }catch(_){}
+        }
+      });
+    }
+  }
+}catch(_){}
 }
 
 // ---- Fishing (World 2 only) ----
@@ -2759,123 +2802,10 @@ window.W3Module = {
 
 </script>
 
-<script type="module">
-// Minimal, non-invasive addition: add a World 3 button in the Worlds section
-(function(){
-  const _renderWorlds = window.renderWorlds;
-  window.renderWorlds = function(){
-    if(_renderWorlds) _renderWorlds();
-    try{
-      const box = document.getElementById('worldsBox');
-      if(!box) return;
-      if(document.getElementById('w3Card')) return; // already added
-
-      const card = document.createElement('div');
-      card.id = 'w3Card';
-      card.className = 'world-card';
-      const isActive = (window.meta && meta.activeWorld==='w3');
-      const unlocked = (window.meta && meta.worldsUnlocked && meta.worldsUnlocked.w3 !== false);
-
-      card.innerHTML = `<strong>World 3</strong> ${isActive?'<span class="tag">Current</span>':''}<br>
-        <span class="small-muted">${unlocked ? 'Combat mode.' : 'Unlock to enter.'}</span><br>
-        ${isActive ? '' : '<button class="small" id="enterW3">Enter World 3</button>'}`;
-
-      box.appendChild(card);
-
-      const btn = card.querySelector('#enterW3');
-      if(btn){
-        btn.addEventListener('click', ()=>{
-          try{
-            if(!window.meta) return;
-            if(!meta.worldsUnlocked) meta.worldsUnlocked = { w1:true, w2:false };
-            if(typeof meta.worldsUnlocked.w3 === 'undefined') meta.worldsUnlocked.w3 = true;
-            meta.activeWorld = 'w3';
-
-            if(!window.worlds) window.worlds = {};
-            if(!worlds.w3) worlds.w3 = { w3state: (window.W3 || {}) };
-
-            if(window.renderAll) renderAll();
-            if(window.updateAll) updateAll();
-            if(window.saveLocal) saveLocal();
-          }catch(e){}
-        });
-      }
-    }catch(e){}
-  };
-  // Render once to ensure button appears when opening Worlds tab
-  try{ if(window.renderWorlds) renderWorlds(); }catch(e){}
-})();
-</script>
 
 
-<script type="module">
-// Robust DOM-based W3 button injector (doesn't rely on original functions)
-(function(){
-  function ensureW3State(){
-    try{
-      if(!window.meta) return false;
-      if(!meta.worldsUnlocked) meta.worldsUnlocked = { w1:true, w2:false };
-      if(typeof meta.worldsUnlocked.w3 === 'undefined') meta.worldsUnlocked.w3 = true; // default unlocked
-      if(!window.worlds) window.worlds = {};
-      if(!worlds.w3) worlds.w3 = { w3state: (window.W3 || {}) };
-      return true;
-    }catch(e){ return false; }
-  }
 
-  function buildW3Card(){
-    const card = document.createElement('div');
-    card.id = 'w3Card';
-    card.className = 'world-card';
-    const isActive = (window.meta && meta.activeWorld==='w3');
-    const unlocked = (window.meta && meta.worldsUnlocked && meta.worldsUnlocked.w3 !== false);
-    card.innerHTML = `<strong>World 3</strong> ${isActive?'<span class="tag">Current</span>':''}<br>
-      <span class="small-muted">${unlocked ? 'Combat mode.' : 'Unlock to enter.'}</span><br>
-      ${isActive ? '' : '<button class="small" id="enterW3">Enter World 3</button>'}`;
-    const btn = card.querySelector('#enterW3');
-    if(btn){
-      btn.addEventListener('click', ()=>{
-        if(!ensureW3State()) return;
-        meta.activeWorld = 'w3';
-        if(window.renderAll) renderAll();
-        if(window.updateAll) updateAll();
-        if(window.saveLocal) saveLocal();
-      });
-    }
-    return card;
-  }
 
-  function ensureW3Card(){
-    const box = document.getElementById('worldsBox');
-    if(!box) return;
-    if(document.getElementById('w3Card')) return;
-    box.appendChild(buildW3Card());
-  }
-
-  // Try periodically shortly after load to catch first render
-  let tries = 0;
-  const t = setInterval(()=>{
-    ensureW3Card();
-    if(++tries > 40) clearInterval(t); // ~20s max
-  }, 500);
-
-  // Also run when clicking the Worlds tab
-  const tab = document.getElementById('tabWorlds');
-  if(tab){
-    tab.addEventListener('click', ()=>{
-      setTimeout(ensureW3Card, 0);
-      setTimeout(ensureW3Card, 100);
-      setTimeout(ensureW3Card, 300);
-    });
-  }
-
-  // Observe changes inside the Worlds panel to re-inject if UI rerenders
-  const panel = document.getElementById('panelWorlds');
-  if(panel && window.MutationObserver){
-    const mo = new MutationObserver(()=> ensureW3Card());
-    mo.observe(panel, { childList:true, subtree:true });
-  }
-})();
-</script>
 
 
 <script type="module">
